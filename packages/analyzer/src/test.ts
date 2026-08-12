@@ -60,6 +60,23 @@ function processOrder(order: unknown) {
 }
 `;
 
+const deeplyNestedCode = `
+function checkUser(user: unknown) {
+  if (user) {
+    for (let i = 0; i < 10; i++) {
+      if (i > 2) {
+        while (i < 8) {
+          console.log(i);
+        }
+      }
+    }
+  }
+}
+`;
+
+console.log("\nDeep nesting analysis:");
+console.log(analyzeCode(deeplyNestedCode));
+
 console.log("\nComplexity analysis:");
 console.log(analyzeCode(complexFunctionCode));
 

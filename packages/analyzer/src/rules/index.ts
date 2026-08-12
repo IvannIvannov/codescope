@@ -4,6 +4,7 @@ import { noConsoleRule } from "./no-console.js";
 import { maxFunctionLengthRule } from "./max-function-length.js";
 import { maxParametersRule } from "./max-parameters.js";
 import { complexityRule } from "./complexity.js";
+import { deepNestingRule } from "./deep-nesting.js";
 
 export const rules: AnalysisRule[] = [
   noAnyRule,
@@ -11,4 +12,5 @@ export const rules: AnalysisRule[] = [
   maxFunctionLengthRule,
   maxParametersRule,
   complexityRule,
+  deepNestingRule
 ];
