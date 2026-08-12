@@ -10,6 +10,14 @@ const data: any = {
 };
 `;
 
-const issues = analyzeCode(testCode);
+const longFunctionCode = `
+function processEverything() {
+${Array.from({ length: 55 }, (_, i) => `  const value${i} = ${i};`).join("\n")}
+}
+`;
 
-console.log(issues);
+console.log("Basic analysis:");
+console.log(analyzeCode(testCode));
+
+console.log("\nLong function analysis:");
+console.log(analyzeCode(longFunctionCode));
