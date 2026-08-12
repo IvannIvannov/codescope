@@ -1,11 +1,6 @@
-import { Project, SyntaxKind } from "ts-morph";
-
-export interface CodeIssue {
-  rule: string;
-  message: string;
-  line: number;
-  severity: "low" | "medium" | "high";
-}
+import { Project } from "ts-morph";
+import { rules } from "./rules/index.js";
+import type { CodeIssue } from "./types.js";
 
 export function analyzeCode(code: string): CodeIssue[] {
   const project = new Project({
@@ -14,18 +9,7 @@ export function analyzeCode(code: string): CodeIssue[] {
 
   const sourceFile = project.createSourceFile("file.ts", code);
 
-  const issues: CodeIssue[] = [];
-
-  const anyKeywords = sourceFile.getDescendantsOfKind(SyntaxKind.AnyKeyword);
-
-  for (const anyKeyword of anyKeywords) {
-    issues.push({
-      rule: "no-any",
-      message: "Avoid using the 'any' type.",
-      line: anyKeyword.getStartLineNumber(),
-      severity: "medium",
-    });
-  }
-
-  return issues;
+  return rules.flatMap((rule) => rule.analyze(sourceFile));
 }
+
+export type { CodeIssue, AnalysisRule } from "./types.js";
