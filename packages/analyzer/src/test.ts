@@ -29,6 +29,40 @@ function createUser(
 }
 `;
 
+const complexFunctionCode = `
+function processOrder(order: unknown) {
+  if (order) {
+    if (true) {
+      if (true) {
+        console.log("processing");
+      }
+    }
+  }
+
+  for (let i = 0; i < 10; i++) {
+    if (i > 2) {
+      if (i < 8) {
+        console.log(i);
+      }
+    }
+  }
+
+  while (false) {
+    if (true) {
+      console.log("waiting");
+    }
+  }
+
+  const result = true && true;
+  const fallback = false || true;
+
+  return result || fallback;
+}
+`;
+
+console.log("\nComplexity analysis:");
+console.log(analyzeCode(complexFunctionCode));
+
 console.log("\nMany parameters analysis:");
 console.log(analyzeCode(manyParametersCode));
 
