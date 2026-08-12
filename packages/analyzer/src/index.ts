@@ -1,5 +1,6 @@
 import { Project, SyntaxKind } from "ts-morph";
 import { rules } from "./rules/index.js";
+
 import type {
   CodeIssue,
   AnalysisReport,
@@ -61,10 +62,14 @@ export function analyzeCode(code: string): AnalysisReport {
   };
 }
 
+export { analyzeProject } from "./project-analyzer.js";
+
 export type {
   CodeIssue,
   AnalysisRule,
   AnalysisReport,
   AnalysisSummary,
   AnalysisMetrics,
+  ProjectMetrics,
+  ProjectAnalysisReport,
 } from "./types.js";

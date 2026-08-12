@@ -5,6 +5,7 @@ export interface CodeIssue {
   message: string;
   line: number;
   severity: "low" | "medium" | "high";
+  file?: string;
 }
 
 export interface AnalysisRule {
@@ -28,5 +29,18 @@ export interface AnalysisReport {
   score: number;
   summary: AnalysisSummary;
   metrics: AnalysisMetrics;
+  issues: CodeIssue[];
+}
+
+export interface ProjectMetrics {
+  files: number;
+  linesOfCode: number;
+  functions: number;
+}
+
+export interface ProjectAnalysisReport {
+  score: number;
+  summary: AnalysisSummary;
+  metrics: ProjectMetrics;
   issues: CodeIssue[];
 }

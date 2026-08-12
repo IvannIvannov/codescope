@@ -1,4 +1,4 @@
-import { analyzeCode } from "./index.js";
+import { analyzeCode, analyzeProject } from "./index.js";
 
 const testCode = `
 function printUser(user: any) {
@@ -73,6 +73,12 @@ function checkUser(user: unknown) {
   }
 }
 `;
+
+console.log("\nProject analysis:");
+
+const projectReport = analyzeProject("packages/analyzer/src");
+
+console.log(projectReport);
 
 console.log("\nDeep nesting analysis:");
 console.log(analyzeCode(deeplyNestedCode));
