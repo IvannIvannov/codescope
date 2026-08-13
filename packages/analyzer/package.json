@@ -5,10 +5,10 @@
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
+    "bin": {
+        "codescope": "./dist/cli.js"
+    },
     "scripts": {
         "build": "tsc -p tsconfig.json"
-    },
-    "dependencies": {
-        "ts-morph": "^28.0.0"
     }
 }
