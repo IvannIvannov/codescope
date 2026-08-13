@@ -47,7 +47,7 @@ export function analyzeProject(projectPath: string): ProjectAnalysisReport {
   project.addSourceFilesAtPaths([
     path.join(projectPath, "**/*.ts"),
     path.join(projectPath, "**/*.tsx"),
-    path.join(projectPath, "**/*.js"),
+    path.join(projectPath, "**/*.jcd s"),
     path.join(projectPath, "**/*.jsx"),
     `!${path.join(projectPath, "**/node_modules/**")}`,
     `!${path.join(projectPath, "**/dist/**")}`,
