@@ -1,122 +1,155 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+type Severity = "low" | "medium" | "high";
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+interface CodeIssue {
+  rule: string;
+  message: string;
+  line: number;
+  severity: Severity;
 }
 
-export default App
+interface AnalysisReport {
+  score: number;
+  summary: {
+    totalIssues: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  metrics: {
+    linesOfCode: number;
+    functions: number;
+  };
+  issues: CodeIssue[];
+}
+
+const initialCode = `function test(value: any) {
+  console.log(value);
+}`;
+
+function App() {
+  const [code, setCode] = useState(initialCode);
+  const [report, setReport] = useState<AnalysisReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const analyze = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("http://localhost:3000/analyze/code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Analysis failed.");
+      }
+
+      const data = await response.json();
+
+      setReport(data.report);
+    } catch {
+      setError("Could not connect to the CodeScope API.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main className="app">
+      <header className="header">
+        <div>
+          <h1>CodeScope</h1>
+          <p>Analyze your code quality in seconds.</p>
+        </div>
+      </header>
+
+      <section className="workspace">
+        <div className="editor-panel">
+          <div className="panel-header">
+            <h2>Code</h2>
+            <span>TypeScript</span>
+          </div>
+
+          <textarea
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            spellCheck={false}
+          />
+
+          <button onClick={analyze} disabled={loading || !code.trim()}>
+            {loading ? "Analyzing..." : "Analyze code"}
+          </button>
+
+          {error && <p className="error">{error}</p>}
+        </div>
+
+        <div className="results-panel">
+          {!report ? (
+            <div className="empty-state">
+              <h2>Ready to analyze</h2>
+              <p>Paste your code and run CodeScope to see the analysis.</p>
+            </div>
+          ) : (
+            <>
+              <div className="score">
+                <span>Code health</span>
+                <strong>{report.score}</strong>
+                <span>/ 100</span>
+              </div>
+
+              <div className="metrics">
+                <div>
+                  <strong>{report.summary.totalIssues}</strong>
+                  <span>Issues</span>
+                </div>
+
+                <div>
+                  <strong>{report.metrics.linesOfCode}</strong>
+                  <span>Lines</span>
+                </div>
+
+                <div>
+                  <strong>{report.metrics.functions}</strong>
+                  <span>Functions</span>
+                </div>
+              </div>
+
+              <div className="severity-summary">
+                <span>High: {report.summary.high}</span>
+                <span>Medium: {report.summary.medium}</span>
+                <span>Low: {report.summary.low}</span>
+              </div>
+
+              <div className="issues">
+                {report.issues.map((issue, index) => (
+                  <article
+                    className={`issue ${issue.severity}`}
+                    key={`${issue.rule}-${issue.line}-${index}`}
+                  >
+                    <div className="issue-heading">
+                      <strong>{issue.rule}</strong>
+                      <span>{issue.severity}</span>
+                    </div>
+
+                    <p>{issue.message}</p>
+                    <small>Line {issue.line}</small>
+                  </article>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export default App;
