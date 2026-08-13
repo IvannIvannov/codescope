@@ -50,6 +50,8 @@ export const deepNestingRule: AnalysisRule = {
         issues.push({
           rule: this.name,
           message: `Code is nested ${depth} levels deep. Maximum recommended nesting depth is ${MAX_NESTING_DEPTH}.`,
+          suggestion:
+            "Reduce nesting by using early returns, guard clauses, or extracting nested logic into separate functions.",
           line: node.getStartLineNumber(),
           severity: "medium",
         });

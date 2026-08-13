@@ -8,6 +8,7 @@ interface CodeIssue {
   message: string;
   line: number;
   severity: Severity;
+  suggestion?: string;
 }
 
 interface AnalysisReport {
@@ -140,6 +141,14 @@ function App() {
                     </div>
 
                     <p>{issue.message}</p>
+
+                    {issue.suggestion && (
+                      <div className="suggestion">
+                        <strong>Suggestion</strong>
+                        <p>{issue.suggestion}</p>
+                      </div>
+                    )}
+
                     <small>Line {issue.line}</small>
                   </article>
                 ))}

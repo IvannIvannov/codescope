@@ -217,6 +217,23 @@ button:disabled {
   margin-top: 12px;
 }
 
+.suggestion {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #151922;
+}
+
+.suggestion strong {
+  font-size: 13px;
+}
+
+.suggestion p {
+  margin: 6px 0 0;
+  color: #aeb5c0;
+  font-size: 14px;
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;

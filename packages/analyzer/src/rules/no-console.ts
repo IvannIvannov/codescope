@@ -18,6 +18,8 @@ export const noConsoleRule: AnalysisRule = {
         issues.push({
           rule: this.name,
           message: "Avoid leaving console statements in production code.",
+          suggestion:
+            "Remove the console statement or replace it with a dedicated logging solution.",
           line: expression.getStartLineNumber(),
           severity: "low",
         });

@@ -13,6 +13,8 @@ export const noAnyRule: AnalysisRule = {
       issues.push({
         rule: this.name,
         message: "Avoid using the 'any' type.",
+        suggestion:
+          "Replace 'any' with a specific type. If the type is unknown, consider using 'unknown' and narrowing it before use.",
         line: anyKeyword.getStartLineNumber(),
         severity: "medium",
       });

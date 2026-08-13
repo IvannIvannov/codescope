@@ -64,6 +64,8 @@ export const complexityRule: AnalysisRule = {
         issues.push({
           rule: this.name,
           message: `Function has a cyclomatic complexity of ${complexity}. Maximum recommended complexity is ${MAX_COMPLEXITY}.`,
+          suggestion:
+            "Reduce branching by extracting conditions and responsibilities into smaller functions.",
           line: functionNode.getStartLineNumber(),
           severity: "high",
         });

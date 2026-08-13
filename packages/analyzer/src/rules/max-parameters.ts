@@ -22,6 +22,8 @@ export const maxParametersRule: AnalysisRule = {
         issues.push({
           rule: this.name,
           message: `Function has ${parameterCount} parameters. Maximum recommended number is ${MAX_PARAMETERS}.`,
+          suggestion:
+            "Consider grouping related parameters into an object or configuration interface.",
           line: functionNode.getStartLineNumber(),
           severity: "medium",
         });

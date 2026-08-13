@@ -6,6 +6,7 @@ export interface CodeIssue {
   line: number;
   severity: "low" | "medium" | "high";
   file?: string;
+  suggestion?: string;
 }
 
 export interface AnalysisRule {

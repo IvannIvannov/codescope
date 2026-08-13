@@ -24,6 +24,8 @@ export const maxFunctionLengthRule: AnalysisRule = {
         issues.push({
           rule: this.name,
           message: `Function is ${length} lines long. Maximum recommended length is ${MAX_FUNCTION_LINES} lines.`,
+          suggestion:
+            "Split the function into smaller functions, each responsible for a single task.",
           line: startLine,
           severity: "medium",
         });
