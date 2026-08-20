@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import "./App.css";
 
 type Severity = "low" | "medium" | "high";
@@ -33,10 +34,60 @@ const initialCode = `function test(value: any) {
 }`;
 
 function App() {
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+  const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+
   const [code, setCode] = useState(initialCode);
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+    monacoRef.current = monaco;
+  };
+
+  const updateMarkers = (issues: CodeIssue[]) => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+
+    if (!editor || !monaco) {
+      return;
+    }
+
+    const model = editor.getModel();
+
+    if (!model) {
+      return;
+    }
+
+    const markers = issues.map((issue) => {
+      const severity =
+        issue.severity === "high"
+          ? monaco.MarkerSeverity.Error
+          : issue.severity === "medium"
+            ? monaco.MarkerSeverity.Warning
+            : monaco.MarkerSeverity.Info;
+
+      const line = issue.line;
+      const column = issue.column ?? 1;
+
+      return {
+        startLineNumber: line,
+        startColumn: column,
+        endLineNumber: line,
+        endColumn: issue.snippet ? column + issue.snippet.length : column + 1,
+        message: issue.suggestion
+          ? `${issue.message}\n\nSuggestion: ${issue.suggestion}`
+          : issue.message,
+        severity,
+        source: "CodeScope",
+        code: issue.rule,
+      };
+    });
+
+    monaco.editor.setModelMarkers(model, "codescope", markers);
+  };
 
   const analyze = async () => {
     setLoading(true);
@@ -58,6 +109,7 @@ function App() {
       const data = await response.json();
 
       setReport(data.report);
+      updateMarkers(data.report.issues);
     } catch {
       setError("Could not connect to the CodeScope API.");
     } finally {
@@ -81,11 +133,31 @@ function App() {
             <span>TypeScript</span>
           </div>
 
-          <textarea
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            spellCheck={false}
-          />
+          <div className="code-editor">
+            <Editor
+              height="500px"
+              defaultLanguage="typescript"
+              theme="vs-dark"
+              value={code}
+              onMount={handleEditorMount}
+              onChange={(value) => setCode(value ?? "")}
+              options={{
+                minimap: {
+                  enabled: false,
+                },
+                fontSize: 15,
+                lineHeight: 24,
+                fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                padding: {
+                  top: 16,
+                  bottom: 16,
+                },
+                wordWrap: "on",
+              }}
+            />
+          </div>
 
           <button onClick={analyze} disabled={loading || !code.trim()}>
             {loading ? "Analyzing..." : "Analyze code"}

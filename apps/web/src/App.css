@@ -246,6 +246,14 @@ button:disabled {
   font-size: 13px;
 }
 
+.code-editor {
+  overflow: hidden;
+  min-height: 500px;
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  background: #090b10;
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;
