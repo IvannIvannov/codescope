@@ -254,6 +254,23 @@ button:disabled {
   background: #090b10;
 }
 
+.issue {
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.issue:hover {
+  transform: translateY(-2px);
+}
+
+.issue:focus-visible {
+  outline: 2px solid #6ea8fe;
+  outline-offset: 3px;
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;

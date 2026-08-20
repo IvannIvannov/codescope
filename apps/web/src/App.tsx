@@ -89,6 +89,35 @@ function App() {
     monaco.editor.setModelMarkers(model, "codescope", markers);
   };
 
+  const goToIssue = (issue: CodeIssue) => {
+    const editor = editorRef.current;
+
+    if (!editor) {
+      return;
+    }
+
+    const lineNumber = issue.line;
+    const column = issue.column ?? 1;
+
+    editor.revealLineInCenter(lineNumber);
+
+    editor.setPosition({
+      lineNumber,
+      column,
+    });
+
+    if (issue.snippet) {
+      editor.setSelection({
+        startLineNumber: lineNumber,
+        startColumn: column,
+        endLineNumber: lineNumber,
+        endColumn: column + issue.snippet.length,
+      });
+    }
+
+    editor.focus();
+  };
+
   const analyze = async () => {
     setLoading(true);
     setError("");
@@ -208,6 +237,14 @@ function App() {
                   <article
                     className={`issue ${issue.severity}`}
                     key={`${issue.rule}-${issue.line}-${index}`}
+                    onClick={() => goToIssue(issue)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        goToIssue(issue);
+                      }
+                    }}
                   >
                     <div className="issue-heading">
                       <strong>{issue.rule}</strong>
