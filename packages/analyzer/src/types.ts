@@ -4,6 +4,8 @@ export interface CodeIssue {
   rule: string;
   message: string;
   line: number;
+  column?: number;
+  snippet?: string;
   severity: "low" | "medium" | "high";
   file?: string;
   suggestion?: string;

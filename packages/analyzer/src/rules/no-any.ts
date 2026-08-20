@@ -10,12 +10,16 @@ export const noAnyRule: AnalysisRule = {
     const anyKeywords = sourceFile.getDescendantsOfKind(SyntaxKind.AnyKeyword);
 
     for (const anyKeyword of anyKeywords) {
+      const position = sourceFile.getLineAndColumnAtPos(anyKeyword.getStart());
+
       issues.push({
         rule: this.name,
         message: "Avoid using the 'any' type.",
         suggestion:
           "Replace 'any' with a specific type. If the type is unknown, consider using 'unknown' and narrowing it before use.",
-        line: anyKeyword.getStartLineNumber(),
+        line: position.line,
+        column: position.column,
+        snippet: anyKeyword.getText(),
         severity: "medium",
       });
     }

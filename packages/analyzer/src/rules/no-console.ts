@@ -12,18 +12,18 @@ export const noConsoleRule: AnalysisRule = {
     );
 
     for (const expression of propertyAccessExpressions) {
-      const expressionText = expression.getExpression().getText();
+      const position = sourceFile.getLineAndColumnAtPos(expression.getStart());
 
-      if (expressionText === "console") {
-        issues.push({
-          rule: this.name,
-          message: "Avoid leaving console statements in production code.",
-          suggestion:
-            "Remove the console statement or replace it with a dedicated logging solution.",
-          line: expression.getStartLineNumber(),
-          severity: "low",
-        });
-      }
+      issues.push({
+        rule: this.name,
+        message: "Avoid leaving console statements in production code.",
+        suggestion:
+          "Remove the console statement or replace it with a dedicated logging solution.",
+        line: position.line,
+        column: position.column,
+        snippet: expression.getText(),
+        severity: "low",
+      });
     }
 
     return issues;

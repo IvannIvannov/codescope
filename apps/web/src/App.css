@@ -234,6 +234,18 @@ button:disabled {
   font-size: 14px;
 }
 
+.issue-snippet {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border: 1px solid #242833;
+  border-radius: 6px;
+  background: #090b10;
+  color: #d8dee9;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;

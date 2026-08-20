@@ -7,6 +7,8 @@ interface CodeIssue {
   rule: string;
   message: string;
   line: number;
+  column?: number;
+  snippet?: string;
   severity: Severity;
   suggestion?: string;
 }
@@ -142,6 +144,10 @@ function App() {
 
                     <p>{issue.message}</p>
 
+                    {issue.snippet && (
+                      <code className="issue-snippet">{issue.snippet}</code>
+                    )}
+
                     {issue.suggestion && (
                       <div className="suggestion">
                         <strong>Suggestion</strong>
@@ -149,7 +155,10 @@ function App() {
                       </div>
                     )}
 
-                    <small>Line {issue.line}</small>
+                    <small>
+                      Line {issue.line}
+                      {issue.column ? `, Column ${issue.column}` : ""}
+                    </small>
                   </article>
                 ))}
               </div>
