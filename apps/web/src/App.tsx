@@ -4,6 +4,12 @@ import "./App.css";
 
 type Severity = "low" | "medium" | "high";
 
+type Language =
+  | "typescript"
+  | "javascript"
+  | "typescriptreact"
+  | "javascriptreact";
+
 interface CodeIssue {
   rule: string;
   message: string;
@@ -36,11 +42,15 @@ const initialCode = `function test(value: any) {
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [code, setCode] = useState(initialCode);
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [fileName, setFileName] = useState("example.ts");
+  const [language, setLanguage] = useState<Language>("typescript");
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -62,6 +72,12 @@ function App() {
     }
 
     monaco.editor.setModelMarkers(model, "codescope", []);
+  };
+
+  const clearAnalysis = () => {
+    setReport(null);
+    setError("");
+    clearMarkers();
   };
 
   const updateMarkers = (issues: CodeIssue[]) => {
@@ -108,16 +124,73 @@ function App() {
 
   const handleCodeChange = (value: string | undefined) => {
     setCode(value ?? "");
+    clearAnalysis();
+  };
 
-    if (report) {
-      setReport(null);
+  const getLanguageFromFile = (name: string): Language => {
+    if (name.endsWith(".tsx")) {
+      return "typescriptreact";
     }
 
-    if (error) {
-      setError("");
+    if (name.endsWith(".jsx")) {
+      return "javascriptreact";
     }
 
-    clearMarkers();
+    if (name.endsWith(".js")) {
+      return "javascript";
+    }
+
+    return "typescript";
+  };
+
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    const allowedExtensions = [".ts", ".tsx", ".js", ".jsx"];
+
+    const extensionIsAllowed = allowedExtensions.some((extension) =>
+      file.name.toLowerCase().endsWith(extension),
+    );
+
+    if (!extensionIsAllowed) {
+      setError(
+        "Unsupported file type. Please select a .ts, .tsx, .js or .jsx file.",
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const content = await file.text();
+
+      setFileName(file.name);
+      setLanguage(getLanguageFromFile(file.name));
+      setCode(content);
+
+      clearAnalysis();
+
+      editorRef.current?.setPosition({
+        lineNumber: 1,
+        column: 1,
+      });
+
+      editorRef.current?.revealLine(1);
+    } catch {
+      setError("Could not read the selected file.");
+    }
+
+    event.target.value = "";
+  };
+
+  const openFilePicker = () => {
+    fileInputRef.current?.click();
   };
 
   const goToIssue = (issue: CodeIssue) => {
@@ -159,7 +232,9 @@ function App() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({
+          code,
+        }),
       });
 
       if (!response.ok) {
@@ -189,14 +264,36 @@ function App() {
       <section className="workspace">
         <div className="editor-panel">
           <div className="panel-header">
-            <h2>Code</h2>
-            <span>TypeScript</span>
+            <div>
+              <h2>Code</h2>
+              <span className="file-name">{fileName}</span>
+            </div>
+
+            <div className="editor-actions">
+              <span>{language}</span>
+
+              <input
+                ref={fileInputRef}
+                className="file-input"
+                type="file"
+                accept=".ts,.tsx,.js,.jsx"
+                onChange={handleFileUpload}
+              />
+
+              <button
+                className="upload-button"
+                type="button"
+                onClick={openFilePicker}
+              >
+                Open file
+              </button>
+            </div>
           </div>
 
           <div className="code-editor">
             <Editor
               height="500px"
-              defaultLanguage="typescript"
+              language={language}
               theme="vs-dark"
               value={code}
               onMount={handleEditorMount}
@@ -219,7 +316,11 @@ function App() {
             />
           </div>
 
-          <button onClick={analyze} disabled={loading || !code.trim()}>
+          <button
+            className="analyze-button"
+            onClick={analyze}
+            disabled={loading || !code.trim()}
+          >
             {loading ? "Analyzing..." : "Analyze code"}
           </button>
 
@@ -230,13 +331,19 @@ function App() {
           {!report ? (
             <div className="empty-state">
               <h2>Ready to analyze</h2>
-              <p>Paste your code and run CodeScope to see the analysis.</p>
+
+              <p>
+                Write, paste or open a file and run CodeScope to see the
+                analysis.
+              </p>
             </div>
           ) : (
             <>
               <div className="score">
                 <span>Code health</span>
+
                 <strong>{report.score}</strong>
+
                 <span>/ 100</span>
               </div>
 
@@ -259,7 +366,9 @@ function App() {
 
               <div className="severity-summary">
                 <span>High: {report.summary.high}</span>
+
                 <span>Medium: {report.summary.medium}</span>
+
                 <span>Low: {report.summary.low}</span>
               </div>
 
