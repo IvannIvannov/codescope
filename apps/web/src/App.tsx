@@ -47,6 +47,23 @@ function App() {
     monacoRef.current = monaco;
   };
 
+  const clearMarkers = () => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+
+    if (!editor || !monaco) {
+      return;
+    }
+
+    const model = editor.getModel();
+
+    if (!model) {
+      return;
+    }
+
+    monaco.editor.setModelMarkers(model, "codescope", []);
+  };
+
   const updateMarkers = (issues: CodeIssue[]) => {
     const editor = editorRef.current;
     const monaco = monacoRef.current;
@@ -87,6 +104,20 @@ function App() {
     });
 
     monaco.editor.setModelMarkers(model, "codescope", markers);
+  };
+
+  const handleCodeChange = (value: string | undefined) => {
+    setCode(value ?? "");
+
+    if (report) {
+      setReport(null);
+    }
+
+    if (error) {
+      setError("");
+    }
+
+    clearMarkers();
   };
 
   const goToIssue = (issue: CodeIssue) => {
@@ -169,7 +200,7 @@ function App() {
               theme="vs-dark"
               value={code}
               onMount={handleEditorMount}
-              onChange={(value) => setCode(value ?? "")}
+              onChange={handleCodeChange}
               options={{
                 minimap: {
                   enabled: false,
