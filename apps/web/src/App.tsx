@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 
+import SettingsPanel from "./components/SettingsPanel";
+
 import {
   HISTORY_STORAGE_KEY,
   MAX_HISTORY_ITEMS,
@@ -216,11 +218,14 @@ function App() {
 
     return {
       score: Math.round(weightedScore),
+
       totalIssues,
       high,
       medium,
       low,
+
       files: projectFiles.length,
+
       linesOfCode,
       functions,
     };
@@ -378,8 +383,11 @@ function App() {
     }
 
     const leftPadding = 60;
+
     const rightPadding = 960;
+
     const topPadding = 30;
+
     const chartHeight = 160;
 
     return trendEntries.map((entry, index) => {
@@ -405,11 +413,13 @@ function App() {
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+
     monacoRef.current = monaco;
   };
 
   const clearMarkers = () => {
     const editor = editorRef.current;
+
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -470,6 +480,7 @@ function App() {
 
   const clearHistory = () => {
     setAnalysisHistory([]);
+
     setSelectedHistoryIds([]);
   };
 
@@ -589,15 +600,22 @@ function App() {
 
       const payload = {
         application: "CodeScope",
+
         version: 1,
+
         exportedAt,
 
         analysis: {
           mode: "code",
+
           file: fileName,
+
           language,
+
           preset: activePreset,
+
           config: analyzerConfig,
+
           report,
         },
       };
@@ -621,20 +639,29 @@ function App() {
 
     const payload = {
       application: "CodeScope",
+
       version: 1,
+
       exportedAt,
 
       analysis: {
         mode: "project",
+
         project: projectName,
+
         preset: activePreset,
+
         config: analyzerConfig,
+
         summary: projectSummary,
 
         files: projectFiles.map((file) => ({
           name: file.name,
+
           path: file.path,
+
           language: file.language,
+
           report: file.report,
         })),
       },
@@ -903,7 +930,9 @@ function App() {
           : issue.message,
 
         severity,
+
         source: "CodeScope",
+
         code: issue.rule,
       };
     });
@@ -951,7 +980,9 @@ function App() {
           index === selectedProjectFile
             ? {
                 ...file,
+
                 code: newCode,
+
                 report: null,
               }
             : file,
@@ -977,6 +1008,7 @@ function App() {
       );
 
       event.target.value = "";
+
       return;
     }
 
@@ -984,6 +1016,7 @@ function App() {
       const content = await file.text();
 
       setMode("code");
+
       setFileName(file.name);
 
       setLanguage(getLanguageFromFile(file.name));
@@ -994,6 +1027,7 @@ function App() {
 
       editorRef.current?.setPosition({
         lineNumber: 1,
+
         column: 1,
       });
 
@@ -1018,6 +1052,7 @@ function App() {
       setError("No supported .ts, .tsx, .js or .jsx files were found.");
 
       event.target.value = "";
+
       return;
     }
 
@@ -1091,6 +1126,7 @@ function App() {
 
     editorRef.current?.setPosition({
       lineNumber: 1,
+
       column: 1,
     });
 
@@ -1259,6 +1295,7 @@ function App() {
 
   const analyzeCode = async () => {
     setLoading(true);
+
     setError("");
 
     try {
@@ -1270,7 +1307,9 @@ function App() {
 
       addHistoryEntry({
         mode: "code",
+
         name: fileName,
+
         score: newReport.score,
 
         totalIssues: newReport.summary.totalIssues,
@@ -1300,6 +1339,7 @@ function App() {
     }
 
     setLoading(true);
+
     setError("");
 
     try {
@@ -1482,6 +1522,7 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
+
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
@@ -1847,168 +1888,15 @@ ${formatHistoryDate(point.entry.createdAt)}`}
       )}
 
       {settingsOpen && (
-        <section className="settings-panel">
-          <div className="settings-header">
-            <div>
-              <h2>Analyzer settings</h2>
-
-              <p>Customize the rules and thresholds used during analysis.</p>
-
-              <div className="active-preset">
-                <span>Active preset:</span>
-
-                <strong>{formatPresetName(activePreset)}</strong>
-              </div>
-
-              <div className="preset-buttons">
-                {(["strict", "balanced", "relaxed"] as AnalyzerPreset[]).map(
-                  (preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      className={activePreset === preset ? "active" : ""}
-                      onClick={() => applyPreset(preset)}
-                    >
-                      {formatPresetName(preset)}
-                    </button>
-                  ),
-                )}
-              </div>
-            </div>
-
-            <div className="settings-actions">
-              <button
-                className="settings-secondary-button"
-                type="button"
-                onClick={exportAnalyzerConfig}
-              >
-                Export config
-              </button>
-
-              <button
-                className="settings-secondary-button"
-                type="button"
-                onClick={openConfigPicker}
-              >
-                Import config
-              </button>
-
-              <button
-                className="reset-settings-button"
-                type="button"
-                onClick={resetAnalyzerConfig}
-              >
-                Reset defaults
-              </button>
-            </div>
-          </div>
-
-          <div className="settings-grid">
-            <label className="setting-toggle">
-              <input
-                type="checkbox"
-                checked={analyzerConfig.noAny}
-                onChange={(event) =>
-                  handleConfigChange("noAny", event.target.checked)
-                }
-              />
-
-              <div>
-                <strong>No any</strong>
-
-                <span>Flag usage of the TypeScript any type.</span>
-              </div>
-            </label>
-
-            <label className="setting-toggle">
-              <input
-                type="checkbox"
-                checked={analyzerConfig.noConsole}
-                onChange={(event) =>
-                  handleConfigChange("noConsole", event.target.checked)
-                }
-              />
-
-              <div>
-                <strong>No console</strong>
-
-                <span>Flag console statements in production code.</span>
-              </div>
-            </label>
-
-            <label className="setting-number">
-              <span>Max function length</span>
-
-              <input
-                type="number"
-                min="1"
-                value={analyzerConfig.maxFunctionLength}
-                onChange={(event) =>
-                  handleConfigChange(
-                    "maxFunctionLength",
-                    Math.max(1, Number(event.target.value) || 1),
-                  )
-                }
-              />
-
-              <small>Balanced default: 50 lines</small>
-            </label>
-
-            <label className="setting-number">
-              <span>Max parameters</span>
-
-              <input
-                type="number"
-                min="1"
-                value={analyzerConfig.maxParameters}
-                onChange={(event) =>
-                  handleConfigChange(
-                    "maxParameters",
-                    Math.max(1, Number(event.target.value) || 1),
-                  )
-                }
-              />
-
-              <small>Balanced default: 4 parameters</small>
-            </label>
-
-            <label className="setting-number">
-              <span>Max complexity</span>
-
-              <input
-                type="number"
-                min="1"
-                value={analyzerConfig.maxComplexity}
-                onChange={(event) =>
-                  handleConfigChange(
-                    "maxComplexity",
-                    Math.max(1, Number(event.target.value) || 1),
-                  )
-                }
-              />
-
-              <small>Balanced default: 10</small>
-            </label>
-
-            <label className="setting-number">
-              <span>Max nesting depth</span>
-
-              <input
-                type="number"
-                min="1"
-                value={analyzerConfig.maxNestingDepth}
-                onChange={(event) =>
-                  handleConfigChange(
-                    "maxNestingDepth",
-                    Math.max(1, Number(event.target.value) || 1),
-                  )
-                }
-              />
-
-              <small>Balanced default: 3 levels</small>
-            </label>
-          </div>
-        </section>
+        <SettingsPanel
+          analyzerConfig={analyzerConfig}
+          activePreset={activePreset}
+          onApplyPreset={applyPreset}
+          onConfigChange={handleConfigChange}
+          onExportConfig={exportAnalyzerConfig}
+          onImportConfig={openConfigPicker}
+          onResetConfig={resetAnalyzerConfig}
+        />
       )}
 
       {mode === "project" && projectSummary && (
@@ -2302,6 +2190,7 @@ ${formatHistoryDate(point.entry.createdAt)}`}
 
                 padding: {
                   top: 16,
+
                   bottom: 16,
                 },
 
