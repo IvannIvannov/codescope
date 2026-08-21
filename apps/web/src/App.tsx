@@ -1,167 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
+
+import {
+  HISTORY_STORAGE_KEY,
+  MAX_HISTORY_ITEMS,
+  STORAGE_KEY,
+  analyzerPresets,
+  defaultAnalyzerConfig,
+  initialCode,
+} from "./config";
+
+import type {
+  ActivePreset,
+  AnalysisHistoryEntry,
+  AnalysisMode,
+  AnalysisReport,
+  AnalyzerConfig,
+  AnalyzerPreset,
+  FileFilter,
+  FileSort,
+  HistoryComparison,
+  IssueSeverityFilter,
+  Language,
+  ProjectFile,
+  ProjectIssue,
+  ProjectSummary,
+  Severity,
+  TrendMode,
+  TrendPoint,
+} from "./types";
+
 import "./App.css";
-
-type Severity = "low" | "medium" | "high";
-
-type Language =
-  | "typescript"
-  | "javascript"
-  | "typescriptreact"
-  | "javascriptreact";
-
-type AnalysisMode = "code" | "project";
-type TrendMode = "all" | AnalysisMode;
-
-type FileFilter = "all" | "issues" | "clean";
-type FileSort = "issues" | "name";
-type IssueSeverityFilter = "all" | Severity;
-
-type AnalyzerPreset = "strict" | "balanced" | "relaxed";
-
-type ActivePreset = AnalyzerPreset | "custom";
-
-interface AnalyzerConfig {
-  noAny: boolean;
-  noConsole: boolean;
-  maxFunctionLength: number;
-  maxParameters: number;
-  maxComplexity: number;
-  maxNestingDepth: number;
-}
-
-interface CodeIssue {
-  rule: string;
-  message: string;
-  line: number;
-  column?: number;
-  snippet?: string;
-  severity: Severity;
-  suggestion?: string;
-}
-
-interface AnalysisReport {
-  score: number;
-
-  summary: {
-    totalIssues: number;
-    high: number;
-    medium: number;
-    low: number;
-  };
-
-  metrics: {
-    linesOfCode: number;
-    functions: number;
-  };
-
-  issues: CodeIssue[];
-}
-
-interface ProjectFile {
-  name: string;
-  path: string;
-  code: string;
-  language: Language;
-  report: AnalysisReport | null;
-}
-
-interface ProjectSummary {
-  score: number;
-  totalIssues: number;
-  high: number;
-  medium: number;
-  low: number;
-  files: number;
-  linesOfCode: number;
-  functions: number;
-}
-
-interface ProjectIssue {
-  issue: CodeIssue;
-  file: ProjectFile;
-  fileIndex: number;
-}
-
-interface AnalysisHistoryEntry {
-  id: string;
-  createdAt: string;
-  mode: AnalysisMode;
-  name: string;
-  score: number;
-  totalIssues: number;
-  high: number;
-  medium: number;
-  low: number;
-  preset: ActivePreset;
-  files?: number;
-  linesOfCode: number;
-  functions: number;
-}
-
-interface HistoryComparison {
-  older: AnalysisHistoryEntry;
-  newer: AnalysisHistoryEntry;
-  score: number;
-  totalIssues: number;
-  high: number;
-  medium: number;
-  low: number;
-}
-
-interface TrendPoint {
-  entry: AnalysisHistoryEntry;
-  x: number;
-  y: number;
-}
-
-const STORAGE_KEY = "codescope-analyzer-config";
-
-const HISTORY_STORAGE_KEY = "codescope-analysis-history";
-
-const MAX_HISTORY_ITEMS = 10;
-
-const initialCode = `function test(value: any) {
-  console.log(value);
-}`;
-
-const defaultAnalyzerConfig: AnalyzerConfig = {
-  noAny: true,
-  noConsole: true,
-  maxFunctionLength: 50,
-  maxParameters: 4,
-  maxComplexity: 10,
-  maxNestingDepth: 3,
-};
-
-const analyzerPresets: Record<AnalyzerPreset, AnalyzerConfig> = {
-  strict: {
-    noAny: true,
-    noConsole: true,
-    maxFunctionLength: 40,
-    maxParameters: 3,
-    maxComplexity: 8,
-    maxNestingDepth: 2,
-  },
-
-  balanced: {
-    noAny: true,
-    noConsole: true,
-    maxFunctionLength: 50,
-    maxParameters: 4,
-    maxComplexity: 10,
-    maxNestingDepth: 3,
-  },
-
-  relaxed: {
-    noAny: false,
-    noConsole: false,
-    maxFunctionLength: 80,
-    maxParameters: 6,
-    maxComplexity: 15,
-    maxNestingDepth: 5,
-  },
-};
 
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
@@ -347,14 +216,11 @@ function App() {
 
     return {
       score: Math.round(weightedScore),
-
       totalIssues,
       high,
       medium,
       low,
-
       files: projectFiles.length,
-
       linesOfCode,
       functions,
     };
@@ -512,11 +378,8 @@ function App() {
     }
 
     const leftPadding = 60;
-
     const rightPadding = 960;
-
     const topPadding = 30;
-
     const chartHeight = 160;
 
     return trendEntries.map((entry, index) => {
@@ -542,13 +405,11 @@ function App() {
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
-
     monacoRef.current = monaco;
   };
 
   const clearMarkers = () => {
     const editor = editorRef.current;
-
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -609,7 +470,6 @@ function App() {
 
   const clearHistory = () => {
     setAnalysisHistory([]);
-
     setSelectedHistoryIds([]);
   };
 
@@ -729,22 +589,15 @@ function App() {
 
       const payload = {
         application: "CodeScope",
-
         version: 1,
-
         exportedAt,
 
         analysis: {
           mode: "code",
-
           file: fileName,
-
           language,
-
           preset: activePreset,
-
           config: analyzerConfig,
-
           report,
         },
       };
@@ -753,9 +606,7 @@ function App() {
 
       downloadTextFile(
         JSON.stringify(payload, null, 2),
-
         `codescope-${safeName}-report.json`,
-
         "application/json",
       );
 
@@ -770,29 +621,20 @@ function App() {
 
     const payload = {
       application: "CodeScope",
-
       version: 1,
-
       exportedAt,
 
       analysis: {
         mode: "project",
-
         project: projectName,
-
         preset: activePreset,
-
         config: analyzerConfig,
-
         summary: projectSummary,
 
         files: projectFiles.map((file) => ({
           name: file.name,
-
           path: file.path,
-
           language: file.language,
-
           report: file.report,
         })),
       },
@@ -802,9 +644,7 @@ function App() {
 
     downloadTextFile(
       JSON.stringify(payload, null, 2),
-
       `codescope-${safeName}-project-report.json`,
-
       "application/json",
     );
   };
@@ -871,9 +711,7 @@ function App() {
 
       downloadTextFile(
         csv,
-
         `codescope-${safeName}-report.csv`,
-
         "text/csv;charset=utf-8",
       );
 
@@ -934,9 +772,7 @@ function App() {
 
     downloadTextFile(
       csv,
-
       `codescope-${safeName}-project-report.csv`,
-
       "text/csv;charset=utf-8",
     );
   };
@@ -944,13 +780,7 @@ function App() {
   const exportAnalyzerConfig = () => {
     const json = JSON.stringify(analyzerConfig, null, 2);
 
-    downloadTextFile(
-      json,
-
-      "codescope-config.json",
-
-      "application/json",
-    );
+    downloadTextFile(json, "codescope-config.json", "application/json");
   };
 
   const openConfigPicker = () => {
@@ -1032,7 +862,7 @@ function App() {
     event.target.value = "";
   };
 
-  const updateMarkers = (issues: CodeIssue[]) => {
+  const updateMarkers = (issues: AnalysisReport["issues"]) => {
     const editor = editorRef.current;
 
     const monaco = monacoRef.current;
@@ -1073,9 +903,7 @@ function App() {
           : issue.message,
 
         severity,
-
         source: "CodeScope",
-
         code: issue.rule,
       };
     });
@@ -1149,7 +977,6 @@ function App() {
       );
 
       event.target.value = "";
-
       return;
     }
 
@@ -1157,7 +984,6 @@ function App() {
       const content = await file.text();
 
       setMode("code");
-
       setFileName(file.name);
 
       setLanguage(getLanguageFromFile(file.name));
@@ -1168,7 +994,6 @@ function App() {
 
       editorRef.current?.setPosition({
         lineNumber: 1,
-
         column: 1,
       });
 
@@ -1193,7 +1018,6 @@ function App() {
       setError("No supported .ts, .tsx, .js or .jsx files were found.");
 
       event.target.value = "";
-
       return;
     }
 
@@ -1267,7 +1091,6 @@ function App() {
 
     editorRef.current?.setPosition({
       lineNumber: 1,
-
       column: 1,
     });
 
@@ -1282,7 +1105,7 @@ function App() {
     folderInputRef.current?.click();
   };
 
-  const goToIssue = (issue: CodeIssue) => {
+  const goToIssue = (issue: AnalysisReport["issues"][number]) => {
     const editor = editorRef.current;
 
     if (!editor) {
@@ -1436,7 +1259,6 @@ function App() {
 
   const analyzeCode = async () => {
     setLoading(true);
-
     setError("");
 
     try {
@@ -1448,9 +1270,7 @@ function App() {
 
       addHistoryEntry({
         mode: "code",
-
         name: fileName,
-
         score: newReport.score,
 
         totalIssues: newReport.summary.totalIssues,
@@ -1480,7 +1300,6 @@ function App() {
     }
 
     setLoading(true);
-
     setError("");
 
     try {
@@ -1663,7 +1482,6 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
-
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
@@ -2043,29 +1861,18 @@ ${formatHistoryDate(point.entry.createdAt)}`}
               </div>
 
               <div className="preset-buttons">
-                <button
-                  type="button"
-                  className={activePreset === "strict" ? "active" : ""}
-                  onClick={() => applyPreset("strict")}
-                >
-                  Strict
-                </button>
-
-                <button
-                  type="button"
-                  className={activePreset === "balanced" ? "active" : ""}
-                  onClick={() => applyPreset("balanced")}
-                >
-                  Balanced
-                </button>
-
-                <button
-                  type="button"
-                  className={activePreset === "relaxed" ? "active" : ""}
-                  onClick={() => applyPreset("relaxed")}
-                >
-                  Relaxed
-                </button>
+                {(["strict", "balanced", "relaxed"] as AnalyzerPreset[]).map(
+                  (preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      className={activePreset === preset ? "active" : ""}
+                      onClick={() => applyPreset(preset)}
+                    >
+                      {formatPresetName(preset)}
+                    </button>
+                  ),
+                )}
               </div>
             </div>
 
@@ -2139,12 +1946,7 @@ ${formatHistoryDate(point.entry.createdAt)}`}
                 onChange={(event) =>
                   handleConfigChange(
                     "maxFunctionLength",
-
-                    Math.max(
-                      1,
-
-                      Number(event.target.value) || 1,
-                    ),
+                    Math.max(1, Number(event.target.value) || 1),
                   )
                 }
               />
@@ -2162,12 +1964,7 @@ ${formatHistoryDate(point.entry.createdAt)}`}
                 onChange={(event) =>
                   handleConfigChange(
                     "maxParameters",
-
-                    Math.max(
-                      1,
-
-                      Number(event.target.value) || 1,
-                    ),
+                    Math.max(1, Number(event.target.value) || 1),
                   )
                 }
               />
@@ -2185,12 +1982,7 @@ ${formatHistoryDate(point.entry.createdAt)}`}
                 onChange={(event) =>
                   handleConfigChange(
                     "maxComplexity",
-
-                    Math.max(
-                      1,
-
-                      Number(event.target.value) || 1,
-                    ),
+                    Math.max(1, Number(event.target.value) || 1),
                   )
                 }
               />
@@ -2208,12 +2000,7 @@ ${formatHistoryDate(point.entry.createdAt)}`}
                 onChange={(event) =>
                   handleConfigChange(
                     "maxNestingDepth",
-
-                    Math.max(
-                      1,
-
-                      Number(event.target.value) || 1,
-                    ),
+                    Math.max(1, Number(event.target.value) || 1),
                   )
                 }
               />
@@ -2515,7 +2302,6 @@ ${formatHistoryDate(point.entry.createdAt)}`}
 
                 padding: {
                   top: 16,
-
                   bottom: 16,
                 },
 
