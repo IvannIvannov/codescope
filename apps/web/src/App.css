@@ -502,6 +502,91 @@ button:disabled {
   color: #9da7b8;
 }
 
+.visible-files-count {
+  display: block;
+  margin-top: 4px;
+  color: #8f98a8;
+  font-size: 12px;
+}
+
+.file-filters {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.file-filters button {
+  width: 100%;
+  margin: 0;
+  padding: 7px 5px;
+
+  border: 1px solid #2b323e;
+  border-radius: 7px;
+
+  background: transparent;
+  color: #8f98a8;
+
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.file-filters button:hover {
+  background: #181d26;
+  color: #f5f7fb;
+}
+
+.file-filters button.active {
+  border-color: #4a5567;
+  background: #202631;
+  color: #f5f7fb;
+}
+
+.sort-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.sort-control span {
+  color: #8f98a8;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sort-control select {
+  width: 100%;
+  padding: 8px 10px;
+
+  border: 1px solid #2b323e;
+  border-radius: 7px;
+
+  outline: none;
+
+  background: #0f131a;
+  color: #f5f7fb;
+
+  font: inherit;
+  font-size: 12px;
+}
+
+.sort-control select:focus {
+  border-color: #566176;
+}
+
+.no-files {
+  padding: 24px 8px;
+
+  color: #747e8f;
+
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 @media (max-width: 900px) {
   .project-summary-metrics {
     grid-template-columns: repeat(2, 1fr);

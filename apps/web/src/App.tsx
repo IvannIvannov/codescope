@@ -11,6 +11,8 @@ type Language =
   | "javascriptreact";
 
 type AnalysisMode = "code" | "project";
+type FileFilter = "all" | "issues" | "clean";
+type FileSort = "issues" | "name";
 
 interface CodeIssue {
   rule: string;
@@ -24,16 +26,19 @@ interface CodeIssue {
 
 interface AnalysisReport {
   score: number;
+
   summary: {
     totalIssues: number;
     high: number;
     medium: number;
     low: number;
   };
+
   metrics: {
     linesOfCode: number;
     functions: number;
   };
+
   issues: CodeIssue[];
 }
 
@@ -62,15 +67,19 @@ const initialCode = `function test(value: any) {
 
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   const [mode, setMode] = useState<AnalysisMode>("code");
 
   const [code, setCode] = useState(initialCode);
+
   const [fileName, setFileName] = useState("example.ts");
+
   const [language, setLanguage] = useState<Language>("typescript");
 
   const [report, setReport] = useState<AnalysisReport | null>(null);
@@ -81,7 +90,12 @@ function App() {
     null,
   );
 
+  const [fileFilter, setFileFilter] = useState<FileFilter>("all");
+
+  const [fileSort, setFileSort] = useState<FileSort>("issues");
+
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState("");
 
   const projectSummary = useMemo<ProjectSummary | null>(() => {
@@ -129,18 +143,19 @@ function App() {
       0,
     );
 
+    const totalWeight = reports.reduce(
+      (total, currentReport) =>
+        total + Math.max(currentReport.metrics.linesOfCode, 1),
+      0,
+    );
+
     const weightedScore =
       reports.reduce(
         (total, currentReport) =>
           total +
           currentReport.score * Math.max(currentReport.metrics.linesOfCode, 1),
         0,
-      ) /
-      reports.reduce(
-        (total, currentReport) =>
-          total + Math.max(currentReport.metrics.linesOfCode, 1),
-        0,
-      );
+      ) / totalWeight;
 
     return {
       score: Math.round(weightedScore),
@@ -153,6 +168,45 @@ function App() {
       functions,
     };
   }, [mode, projectFiles]);
+
+  const visibleProjectFiles = useMemo(() => {
+    const filesWithIndex = projectFiles.map((file, originalIndex) => ({
+      file,
+      originalIndex,
+    }));
+
+    const filtered = filesWithIndex.filter(({ file }) => {
+      if (fileFilter === "all") {
+        return true;
+      }
+
+      if (!file.report) {
+        return false;
+      }
+
+      if (fileFilter === "issues") {
+        return file.report.summary.totalIssues > 0;
+      }
+
+      return file.report.summary.totalIssues === 0;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (fileSort === "name") {
+        return a.file.name.localeCompare(b.file.name);
+      }
+
+      const aIssues = a.file.report?.summary.totalIssues ?? 0;
+
+      const bIssues = b.file.report?.summary.totalIssues ?? 0;
+
+      if (bIssues !== aIssues) {
+        return bIssues - aIssues;
+      }
+
+      return a.file.name.localeCompare(b.file.name);
+    });
+  }, [projectFiles, fileFilter, fileSort]);
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -211,10 +265,13 @@ function App() {
         startLineNumber: line,
         startColumn: column,
         endLineNumber: line,
+
         endColumn: issue.snippet ? column + issue.snippet.length : column + 1,
+
         message: issue.suggestion
           ? `${issue.message}\n\nSuggestion: ${issue.suggestion}`
           : issue.message,
+
         severity,
         source: "CodeScope",
         code: issue.rule,
@@ -297,8 +354,11 @@ function App() {
       const content = await file.text();
 
       setMode("code");
+
       setFileName(file.name);
+
       setLanguage(getLanguageFromFile(file.name));
+
       setCode(content);
 
       clearAnalysis();
@@ -336,9 +396,13 @@ function App() {
       const files: ProjectFile[] = await Promise.all(
         supportedFiles.map(async (file) => ({
           name: file.name,
+
           path: file.webkitRelativePath || file.name,
+
           code: await file.text(),
+
           language: getLanguageFromFile(file.name),
+
           report: null,
         })),
       );
@@ -346,6 +410,9 @@ function App() {
       setMode("project");
       setProjectFiles(files);
       setSelectedProjectFile(0);
+
+      setFileFilter("all");
+      setFileSort("issues");
 
       setFileName(files[0].name);
       setLanguage(files[0].language);
@@ -367,6 +434,7 @@ function App() {
     }
 
     setSelectedProjectFile(index);
+
     setFileName(file.name);
     setLanguage(file.language);
     setCode(file.code);
@@ -416,8 +484,11 @@ function App() {
     if (issue.snippet) {
       editor.setSelection({
         startLineNumber: lineNumber,
+
         startColumn: column,
+
         endLineNumber: lineNumber,
+
         endColumn: column + issue.snippet.length,
       });
     }
@@ -430,9 +501,11 @@ function App() {
   ): Promise<AnalysisReport> => {
     const response = await fetch("http://localhost:3000/analyze/code", {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json",
       },
+
       body: JSON.stringify({
         code: sourceCode,
       }),
@@ -455,6 +528,7 @@ function App() {
       const newReport = await requestAnalysis(code);
 
       setReport(newReport);
+
       updateMarkers(newReport.issues);
     } catch {
       setError("Could not connect to the CodeScope API.");
@@ -475,6 +549,7 @@ function App() {
       const analyzedFiles = await Promise.all(
         projectFiles.map(async (file) => ({
           ...file,
+
           report: await requestAnalysis(file.code),
         })),
       );
@@ -486,6 +561,7 @@ function App() {
 
         if (selectedFile?.report) {
           setReport(selectedFile.report);
+
           updateMarkers(selectedFile.report.issues);
         }
       }
@@ -498,7 +574,9 @@ function App() {
 
   const switchToCodeMode = () => {
     setMode("code");
+
     setSelectedProjectFile(null);
+
     clearAnalysis();
   };
 
@@ -507,6 +585,7 @@ function App() {
       <header className="header">
         <div>
           <h1>CodeScope</h1>
+
           <p>Analyze your code quality in seconds.</p>
         </div>
 
@@ -553,7 +632,9 @@ function App() {
         <section className="project-summary">
           <div className="project-score">
             <span>Project health</span>
+
             <strong>{projectSummary.score}</strong>
+
             <span>/ 100</span>
           </div>
 
@@ -581,7 +662,9 @@ function App() {
 
           <div className="project-severity">
             <span>High: {projectSummary.high}</span>
+
             <span>Medium: {projectSummary.medium}</span>
+
             <span>Low: {projectSummary.low}</span>
           </div>
         </section>
@@ -593,40 +676,91 @@ function App() {
         {mode === "project" && (
           <aside className="project-sidebar">
             <div className="project-sidebar-header">
-              <h3>Project files</h3>
-              <span>{projectFiles.length}</span>
+              <div>
+                <h3>Project files</h3>
+
+                <span className="visible-files-count">
+                  {visibleProjectFiles.length} / {projectFiles.length}
+                </span>
+              </div>
             </div>
 
-            <div className="project-file-list">
-              {projectFiles.map((file, index) => (
-                <button
-                  key={`${file.path}-${index}`}
-                  type="button"
-                  className={
-                    selectedProjectFile === index
-                      ? "project-file active"
-                      : "project-file"
-                  }
-                  onClick={() => selectProjectFile(index)}
-                >
-                  <div>
-                    <strong>{file.name}</strong>
-                    <small>{file.path}</small>
-                  </div>
+            <div className="file-filters">
+              <button
+                type="button"
+                className={fileFilter === "all" ? "active" : ""}
+                onClick={() => setFileFilter("all")}
+              >
+                All
+              </button>
 
-                  {file.report && (
-                    <span
-                      className={
-                        file.report.summary.totalIssues === 0
-                          ? "file-status clean"
-                          : "file-status issues-found"
-                      }
-                    >
-                      {file.report.summary.totalIssues}
-                    </span>
-                  )}
-                </button>
-              ))}
+              <button
+                type="button"
+                className={fileFilter === "issues" ? "active" : ""}
+                onClick={() => setFileFilter("issues")}
+              >
+                Issues
+              </button>
+
+              <button
+                type="button"
+                className={fileFilter === "clean" ? "active" : ""}
+                onClick={() => setFileFilter("clean")}
+              >
+                Clean
+              </button>
+            </div>
+
+            <label className="sort-control">
+              <span>Sort by</span>
+
+              <select
+                value={fileSort}
+                onChange={(event) =>
+                  setFileSort(event.target.value as FileSort)
+                }
+              >
+                <option value="issues">Most issues</option>
+
+                <option value="name">Name</option>
+              </select>
+            </label>
+
+            <div className="project-file-list">
+              {visibleProjectFiles.length === 0 ? (
+                <div className="no-files">No files match this filter.</div>
+              ) : (
+                visibleProjectFiles.map(({ file, originalIndex }) => (
+                  <button
+                    key={`${file.path}-${originalIndex}`}
+                    type="button"
+                    className={
+                      selectedProjectFile === originalIndex
+                        ? "project-file active"
+                        : "project-file"
+                    }
+                    onClick={() => selectProjectFile(originalIndex)}
+                  >
+                    <div>
+                      <strong>{file.name}</strong>
+
+                      <small>{file.path}</small>
+                    </div>
+
+                    {file.report && (
+                      <span
+                        className={
+                          file.report.summary.totalIssues === 0
+                            ? "file-status clean"
+                            : "file-status issues-found"
+                        }
+                      >
+                        {file.report.summary.totalIssues}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
             </div>
           </aside>
         )}
@@ -635,6 +769,7 @@ function App() {
           <div className="panel-header">
             <div>
               <h2>Code</h2>
+
               <span className="file-name">{fileName}</span>
             </div>
 
@@ -675,15 +810,22 @@ function App() {
                 minimap: {
                   enabled: false,
                 },
+
                 fontSize: 15,
+
                 lineHeight: 24,
+
                 fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
+
                 scrollBeyondLastLine: false,
+
                 automaticLayout: true,
+
                 padding: {
                   top: 16,
                   bottom: 16,
                 },
+
                 wordWrap: "on",
               }}
             />
@@ -726,6 +868,7 @@ function App() {
                 </span>
 
                 <strong>{report.score}</strong>
+
                 <span>/ 100</span>
               </div>
 
@@ -748,7 +891,9 @@ function App() {
 
               <div className="severity-summary">
                 <span>High: {report.summary.high}</span>
+
                 <span>Medium: {report.summary.medium}</span>
+
                 <span>Low: {report.summary.low}</span>
               </div>
 
@@ -768,6 +913,7 @@ function App() {
                   >
                     <div className="issue-heading">
                       <strong>{issue.rule}</strong>
+
                       <span>{issue.severity}</span>
                     </div>
 
@@ -780,6 +926,7 @@ function App() {
                     {issue.suggestion && (
                       <div className="suggestion">
                         <strong>Suggestion</strong>
+
                         <p>{issue.suggestion}</p>
                       </div>
                     )}
