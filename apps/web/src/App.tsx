@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 
 import HistoryPanel from "./components/HistoryPanel";
+import ProjectIssuesPanel from "./components/ProjectIssuesPanel";
 import ProjectSidebar from "./components/ProjectSidebar";
+import ProjectSummaryPanel from "./components/ProjectSummaryPanel";
 import ResultsPanel from "./components/ResultsPanel";
 import SettingsPanel from "./components/SettingsPanel";
 
@@ -296,9 +298,7 @@ function App() {
 
     const severityWeight: Record<Severity, number> = {
       high: 3,
-
       medium: 2,
-
       low: 1,
     };
 
@@ -446,9 +446,7 @@ function App() {
 
   const clearAnalysis = () => {
     setReport(null);
-
     setError("");
-
     clearMarkers();
   };
 
@@ -456,15 +454,12 @@ function App() {
     setProjectFiles((currentFiles) =>
       currentFiles.map((file) => ({
         ...file,
-
         report: null,
       })),
     );
 
     setReport(null);
-
     setError("");
-
     clearMarkers();
   };
 
@@ -1540,7 +1535,6 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
-
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
@@ -1588,141 +1582,20 @@ function App() {
       )}
 
       {mode === "project" && projectSummary && (
-        <section className="project-summary">
-          <div className="project-score">
-            <span>Project health</span>
-
-            <strong>{projectSummary.score}</strong>
-
-            <span>/ 100</span>
-          </div>
-
-          <div className="project-summary-metrics">
-            <div>
-              <strong>{projectSummary.files}</strong>
-
-              <span>Files</span>
-            </div>
-
-            <div>
-              <strong>{projectSummary.totalIssues}</strong>
-
-              <span>Issues</span>
-            </div>
-
-            <div>
-              <strong>{projectSummary.linesOfCode}</strong>
-
-              <span>Lines</span>
-            </div>
-
-            <div>
-              <strong>{projectSummary.functions}</strong>
-
-              <span>Functions</span>
-            </div>
-          </div>
-
-          <div className="project-severity">
-            <span>High: {projectSummary.high}</span>
-
-            <span>Medium: {projectSummary.medium}</span>
-
-            <span>Low: {projectSummary.low}</span>
-          </div>
-        </section>
+        <ProjectSummaryPanel summary={projectSummary} />
       )}
 
       {mode === "project" && projectIssues.length > 0 && (
-        <section className="project-issues">
-          <div className="project-issues-header">
-            <div>
-              <h2>Project issues</h2>
-
-              <p>Filter and explore all detected issues.</p>
-            </div>
-
-            <span>
-              {visibleProjectIssues.length} / {projectIssues.length}
-            </span>
-          </div>
-
-          <div className="project-issue-controls">
-            <div className="issue-severity-filters">
-              {(["all", "high", "medium", "low"] as IssueSeverityFilter[]).map(
-                (severity) => (
-                  <button
-                    key={severity}
-                    type="button"
-                    className={issueSeverityFilter === severity ? "active" : ""}
-                    onClick={() => setIssueSeverityFilter(severity)}
-                  >
-                    {severity === "all"
-                      ? "All"
-                      : severity.charAt(0).toUpperCase() + severity.slice(1)}
-                  </button>
-                ),
-              )}
-            </div>
-
-            <label className="issue-rule-filter">
-              <span>Rule</span>
-
-              <select
-                value={issueRuleFilter}
-                onChange={(event) => setIssueRuleFilter(event.target.value)}
-              >
-                <option value="all">All rules</option>
-
-                {availableIssueRules.map((rule) => (
-                  <option key={rule} value={rule}>
-                    {rule}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {visibleProjectIssues.length === 0 ? (
-            <div className="no-project-issues">
-              No issues match the selected filters.
-            </div>
-          ) : (
-            <div className="project-issues-list">
-              {visibleProjectIssues.map((projectIssue, index) => (
-                <button
-                  type="button"
-                  className={`project-issue-item ${projectIssue.issue.severity}`}
-                  key={`${projectIssue.file.path}-${projectIssue.issue.rule}-${projectIssue.issue.line}-${index}`}
-                  onClick={() => goToProjectIssue(projectIssue)}
-                >
-                  <div className="project-issue-top">
-                    <strong>{projectIssue.issue.rule}</strong>
-
-                    <span
-                      className={`project-issue-severity ${projectIssue.issue.severity}`}
-                    >
-                      {projectIssue.issue.severity}
-                    </span>
-                  </div>
-
-                  <p>{projectIssue.issue.message}</p>
-
-                  <div className="project-issue-location">
-                    <span>{projectIssue.file.name}</span>
-
-                    <small>
-                      Line {projectIssue.issue.line}
-                      {projectIssue.issue.column
-                        ? `, Column ${projectIssue.issue.column}`
-                        : ""}
-                    </small>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </section>
+        <ProjectIssuesPanel
+          projectIssues={projectIssues}
+          visibleProjectIssues={visibleProjectIssues}
+          issueSeverityFilter={issueSeverityFilter}
+          issueRuleFilter={issueRuleFilter}
+          availableIssueRules={availableIssueRules}
+          onSeverityFilterChange={setIssueSeverityFilter}
+          onRuleFilterChange={setIssueRuleFilter}
+          onGoToProjectIssue={goToProjectIssue}
+        />
       )}
 
       <section
