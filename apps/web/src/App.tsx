@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { type OnMount } from "@monaco-editor/react";
 
+import AppHeader from "./components/AppHeader";
 import EditorPanel from "./components/EditorPanel";
 import HistoryPanel from "./components/HistoryPanel";
 import ProjectIssuesPanel from "./components/ProjectIssuesPanel";
@@ -9,7 +10,6 @@ import ProjectSidebar from "./components/ProjectSidebar";
 import ProjectSummaryPanel from "./components/ProjectSummaryPanel";
 import ResultsPanel from "./components/ResultsPanel";
 import SettingsPanel from "./components/SettingsPanel";
-import AppHeader from "./components/AppHeader";
 
 import {
   HISTORY_STORAGE_KEY,
@@ -39,6 +39,18 @@ import type {
   TrendMode,
   TrendPoint,
 } from "./types";
+
+import { createProjectSummary } from "./utils/analysisUtils";
+
+import { downloadTextFile } from "./utils/downloadUtils";
+
+import {
+  createSafeFileName,
+  escapeCsvValue,
+  getLanguageFromFile,
+  getProjectName,
+  isSupportedFile,
+} from "./utils/fileUtils";
 
 import "./App.css";
 
@@ -174,72 +186,7 @@ function App() {
       return null;
     }
 
-    const reports = projectFiles
-      .map((file) => file.report)
-      .filter(
-        (fileReport): fileReport is AnalysisReport => fileReport !== null,
-      );
-
-    const totalIssues = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.totalIssues,
-      0,
-    );
-
-    const high = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.high,
-      0,
-    );
-
-    const medium = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.medium,
-      0,
-    );
-
-    const low = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.low,
-      0,
-    );
-
-    const linesOfCode = reports.reduce(
-      (total, currentReport) => total + currentReport.metrics.linesOfCode,
-      0,
-    );
-
-    const functions = reports.reduce(
-      (total, currentReport) => total + currentReport.metrics.functions,
-      0,
-    );
-
-    const totalWeight = reports.reduce(
-      (total, currentReport) =>
-        total + Math.max(currentReport.metrics.linesOfCode, 1),
-      0,
-    );
-
-    const weightedScore =
-      totalWeight === 0
-        ? 100
-        : reports.reduce(
-            (total, currentReport) =>
-              total +
-              currentReport.score *
-                Math.max(currentReport.metrics.linesOfCode, 1),
-            0,
-          ) / totalWeight;
-
-    return {
-      score: Math.round(weightedScore),
-
-      totalIssues,
-      high,
-      medium,
-      low,
-
-      files: projectFiles.length,
-
-      linesOfCode,
-      functions,
-    };
+    return createProjectSummary(projectFiles);
   }, [mode, projectFiles]);
 
   const visibleProjectFiles = useMemo(() => {
@@ -458,7 +405,6 @@ function App() {
     setProjectFiles((currentFiles) =>
       currentFiles.map((file) => ({
         ...file,
-
         report: null,
       })),
     );
@@ -546,68 +492,6 @@ function App() {
     });
 
     invalidateAnalysis();
-  };
-
-  const downloadTextFile = (
-    content: string,
-
-    fileNameToDownload: string,
-
-    mimeType: string,
-  ) => {
-    const blob = new Blob([content], {
-      type: mimeType,
-    });
-
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-
-    link.href = url;
-
-    link.download = fileNameToDownload;
-
-    document.body.appendChild(link);
-
-    link.click();
-
-    document.body.removeChild(link);
-
-    URL.revokeObjectURL(url);
-  };
-
-  const createSafeFileName = (value: string) => {
-    return (
-      value
-        .toLowerCase()
-        .replace(/\.[^/.]+$/, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "analysis"
-    );
-  };
-
-  const escapeCsvValue = (value: string | number | undefined) => {
-    const stringValue = value === undefined ? "" : String(value);
-
-    return `"${stringValue.replace(/"/g, '""')}"`;
-  };
-
-  const getProjectName = (files: ProjectFile[]) => {
-    const firstPath = files[0]?.path;
-
-    if (!firstPath) {
-      return "Project";
-    }
-
-    const normalizedPath = firstPath.replace(/\\/g, "/");
-
-    const parts = normalizedPath.split("/");
-
-    if (parts.length > 1) {
-      return parts[0];
-    }
-
-    return "Project";
   };
 
   const exportReportJson = () => {
@@ -960,35 +844,6 @@ function App() {
     monaco.editor.setModelMarkers(model, "codescope", markers);
   };
 
-  const getLanguageFromFile = (name: string): Language => {
-    const lowerName = name.toLowerCase();
-
-    if (lowerName.endsWith(".tsx")) {
-      return "typescriptreact";
-    }
-
-    if (lowerName.endsWith(".jsx")) {
-      return "javascriptreact";
-    }
-
-    if (lowerName.endsWith(".js")) {
-      return "javascript";
-    }
-
-    return "typescript";
-  };
-
-  const isSupportedFile = (name: string) => {
-    const lowerName = name.toLowerCase();
-
-    return (
-      lowerName.endsWith(".ts") ||
-      lowerName.endsWith(".tsx") ||
-      lowerName.endsWith(".js") ||
-      lowerName.endsWith(".jsx")
-    );
-  };
-
   const handleCodeChange = (value: string | undefined) => {
     const newCode = value ?? "";
 
@@ -1242,75 +1097,6 @@ function App() {
     const data = await response.json();
 
     return data.report;
-  };
-
-  const createProjectSummary = (files: ProjectFile[]): ProjectSummary => {
-    const reports = files
-      .map((file) => file.report)
-      .filter(
-        (fileReport): fileReport is AnalysisReport => fileReport !== null,
-      );
-
-    const totalIssues = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.totalIssues,
-      0,
-    );
-
-    const high = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.high,
-      0,
-    );
-
-    const medium = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.medium,
-      0,
-    );
-
-    const low = reports.reduce(
-      (total, currentReport) => total + currentReport.summary.low,
-      0,
-    );
-
-    const linesOfCode = reports.reduce(
-      (total, currentReport) => total + currentReport.metrics.linesOfCode,
-      0,
-    );
-
-    const functions = reports.reduce(
-      (total, currentReport) => total + currentReport.metrics.functions,
-      0,
-    );
-
-    const totalWeight = reports.reduce(
-      (total, currentReport) =>
-        total + Math.max(currentReport.metrics.linesOfCode, 1),
-      0,
-    );
-
-    const weightedScore =
-      totalWeight === 0
-        ? 100
-        : reports.reduce(
-            (total, currentReport) =>
-              total +
-              currentReport.score *
-                Math.max(currentReport.metrics.linesOfCode, 1),
-            0,
-          ) / totalWeight;
-
-    return {
-      score: Math.round(weightedScore),
-
-      totalIssues,
-      high,
-      medium,
-      low,
-
-      files: files.length,
-
-      linesOfCode,
-      functions,
-    };
   };
 
   const analyzeCode = async () => {
