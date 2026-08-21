@@ -4,6 +4,7 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 
 import HistoryPanel from "./components/HistoryPanel";
 import ProjectSidebar from "./components/ProjectSidebar";
+import ResultsPanel from "./components/ResultsPanel";
 import SettingsPanel from "./components/SettingsPanel";
 
 import {
@@ -212,12 +213,15 @@ function App() {
     );
 
     const weightedScore =
-      reports.reduce(
-        (total, currentReport) =>
-          total +
-          currentReport.score * Math.max(currentReport.metrics.linesOfCode, 1),
-        0,
-      ) / totalWeight;
+      totalWeight === 0
+        ? 100
+        : reports.reduce(
+            (total, currentReport) =>
+              total +
+              currentReport.score *
+                Math.max(currentReport.metrics.linesOfCode, 1),
+            0,
+          ) / totalWeight;
 
     return {
       score: Math.round(weightedScore),
@@ -452,6 +456,7 @@ function App() {
     setProjectFiles((currentFiles) =>
       currentFiles.map((file) => ({
         ...file,
+
         report: null,
       })),
     );
@@ -518,6 +523,7 @@ function App() {
   ) => {
     setAnalyzerConfig((currentConfig) => ({
       ...currentConfig,
+
       [key]: value,
     }));
 
@@ -1820,121 +1826,14 @@ function App() {
           {error && <p className="error">{error}</p>}
         </div>
 
-        <div className="results-panel">
-          {!report ? (
-            <div className="empty-state">
-              <h2>Ready to analyze</h2>
-
-              <p>
-                {mode === "project"
-                  ? "Analyze the project to see issues for each file."
-                  : "Write, paste or open a file and run CodeScope to see the analysis."}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="score">
-                <span>
-                  {mode === "project" ? "Selected file health" : "Code health"}
-                </span>
-
-                <strong>{report.score}</strong>
-
-                <span>/ 100</span>
-              </div>
-
-              <div className="metrics">
-                <div>
-                  <strong>{report.summary.totalIssues}</strong>
-
-                  <span>Issues</span>
-                </div>
-
-                <div>
-                  <strong>{report.metrics.linesOfCode}</strong>
-
-                  <span>Lines</span>
-                </div>
-
-                <div>
-                  <strong>{report.metrics.functions}</strong>
-
-                  <span>Functions</span>
-                </div>
-              </div>
-
-              <div className="severity-summary">
-                <span>High: {report.summary.high}</span>
-
-                <span>Medium: {report.summary.medium}</span>
-
-                <span>Low: {report.summary.low}</span>
-              </div>
-
-              {canExportReport && (
-                <div className="report-export-actions">
-                  <div>
-                    <strong>Export report</strong>
-
-                    <span>Download the current analysis results.</span>
-                  </div>
-
-                  <div className="report-export-buttons">
-                    <button type="button" onClick={exportReportJson}>
-                      Export JSON
-                    </button>
-
-                    <button type="button" onClick={exportReportCsv}>
-                      Export CSV
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="issues">
-                {report.issues.map((issue, index) => (
-                  <article
-                    className={`issue ${issue.severity}`}
-                    key={`${issue.rule}-${issue.line}-${index}`}
-                    onClick={() => goToIssue(issue)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        goToIssue(issue);
-                      }
-                    }}
-                  >
-                    <div className="issue-heading">
-                      <strong>{issue.rule}</strong>
-
-                      <span>{issue.severity}</span>
-                    </div>
-
-                    <p>{issue.message}</p>
-
-                    {issue.snippet && (
-                      <code className="issue-snippet">{issue.snippet}</code>
-                    )}
-
-                    {issue.suggestion && (
-                      <div className="suggestion">
-                        <strong>Suggestion</strong>
-
-                        <p>{issue.suggestion}</p>
-                      </div>
-                    )}
-
-                    <small>
-                      Line {issue.line}
-                      {issue.column ? `, Column ${issue.column}` : ""}
-                    </small>
-                  </article>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
+        <ResultsPanel
+          mode={mode}
+          report={report}
+          canExportReport={canExportReport}
+          onGoToIssue={goToIssue}
+          onExportJson={exportReportJson}
+          onExportCsv={exportReportCsv}
+        />
       </section>
     </main>
   );
