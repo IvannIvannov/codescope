@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import "./App.css";
 
@@ -14,6 +14,7 @@ type AnalysisMode = "code" | "project";
 type FileFilter = "all" | "issues" | "clean";
 type FileSort = "issues" | "name";
 type IssueSeverityFilter = "all" | Severity;
+type AnalyzerPreset = "strict" | "balanced" | "relaxed";
 
 interface AnalyzerConfig {
   noAny: boolean;
@@ -77,6 +78,8 @@ interface ProjectIssue {
   fileIndex: number;
 }
 
+const STORAGE_KEY = "codescope-analyzer-config";
+
 const initialCode = `function test(value: any) {
   console.log(value);
 }`;
@@ -90,21 +93,46 @@ const defaultAnalyzerConfig: AnalyzerConfig = {
   maxNestingDepth: 3,
 };
 
+const analyzerPresets: Record<AnalyzerPreset, AnalyzerConfig> = {
+  strict: {
+    noAny: true,
+    noConsole: true,
+    maxFunctionLength: 40,
+    maxParameters: 3,
+    maxComplexity: 8,
+    maxNestingDepth: 2,
+  },
+
+  balanced: {
+    noAny: true,
+    noConsole: true,
+    maxFunctionLength: 50,
+    maxParameters: 4,
+    maxComplexity: 10,
+    maxNestingDepth: 3,
+  },
+
+  relaxed: {
+    noAny: false,
+    noConsole: false,
+    maxFunctionLength: 80,
+    maxParameters: 6,
+    maxComplexity: 15,
+    maxNestingDepth: 5,
+  },
+};
+
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
-
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   const [mode, setMode] = useState<AnalysisMode>("code");
 
   const [code, setCode] = useState(initialCode);
-
   const [fileName, setFileName] = useState("example.ts");
-
   const [language, setLanguage] = useState<Language>("typescript");
 
   const [report, setReport] = useState<AnalysisReport | null>(null);
@@ -116,7 +144,6 @@ function App() {
   );
 
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
-
   const [fileSort, setFileSort] = useState<FileSort>("issues");
 
   const [issueSeverityFilter, setIssueSeverityFilter] =
@@ -124,15 +151,32 @@ function App() {
 
   const [issueRuleFilter, setIssueRuleFilter] = useState("all");
 
-  const [analyzerConfig, setAnalyzerConfig] = useState<AnalyzerConfig>(
-    defaultAnalyzerConfig,
-  );
+  const [analyzerConfig, setAnalyzerConfig] = useState<AnalyzerConfig>(() => {
+    const savedConfig = localStorage.getItem(STORAGE_KEY);
+
+    if (!savedConfig) {
+      return defaultAnalyzerConfig;
+    }
+
+    try {
+      const parsedConfig = JSON.parse(savedConfig) as Partial<AnalyzerConfig>;
+
+      return {
+        ...defaultAnalyzerConfig,
+        ...parsedConfig,
+      };
+    } catch {
+      return defaultAnalyzerConfig;
+    }
+  });
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(analyzerConfig));
+  }, [analyzerConfig]);
 
   const projectSummary = useMemo<ProjectSummary | null>(() => {
     if (
@@ -195,14 +239,11 @@ function App() {
 
     return {
       score: Math.round(weightedScore),
-
       totalIssues,
       high,
       medium,
       low,
-
       files: projectFiles.length,
-
       linesOfCode,
       functions,
     };
@@ -310,13 +351,11 @@ function App() {
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
-
     monacoRef.current = monaco;
   };
 
   const clearMarkers = () => {
     const editor = editorRef.current;
-
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -347,7 +386,16 @@ function App() {
     );
 
     setReport(null);
+    setError("");
     clearMarkers();
+  };
+
+  const invalidateAnalysis = () => {
+    if (mode === "project") {
+      clearProjectReports();
+    } else {
+      clearAnalysis();
+    }
   };
 
   const handleConfigChange = <K extends keyof AnalyzerConfig>(
@@ -359,26 +407,27 @@ function App() {
       [key]: value,
     }));
 
-    if (mode === "project") {
-      clearProjectReports();
-    } else {
-      clearAnalysis();
-    }
+    invalidateAnalysis();
   };
 
   const resetAnalyzerConfig = () => {
-    setAnalyzerConfig(defaultAnalyzerConfig);
+    setAnalyzerConfig({
+      ...defaultAnalyzerConfig,
+    });
 
-    if (mode === "project") {
-      clearProjectReports();
-    } else {
-      clearAnalysis();
-    }
+    invalidateAnalysis();
+  };
+
+  const applyPreset = (preset: AnalyzerPreset) => {
+    setAnalyzerConfig({
+      ...analyzerPresets[preset],
+    });
+
+    invalidateAnalysis();
   };
 
   const updateMarkers = (issues: CodeIssue[]) => {
     const editor = editorRef.current;
-
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -400,14 +449,11 @@ function App() {
             : monaco.MarkerSeverity.Info;
 
       const line = issue.line;
-
       const column = issue.column ?? 1;
 
       return {
         startLineNumber: line,
-
         startColumn: column,
-
         endLineNumber: line,
 
         endColumn: issue.snippet ? column + issue.snippet.length : column + 1,
@@ -417,9 +463,7 @@ function App() {
           : issue.message,
 
         severity,
-
         source: "CodeScope",
-
         code: issue.rule,
       };
     });
@@ -493,7 +537,6 @@ function App() {
       );
 
       event.target.value = "";
-
       return;
     }
 
@@ -501,7 +544,6 @@ function App() {
       const content = await file.text();
 
       setMode("code");
-
       setFileName(file.name);
 
       setLanguage(getLanguageFromFile(file.name));
@@ -512,7 +554,6 @@ function App() {
 
       editorRef.current?.setPosition({
         lineNumber: 1,
-
         column: 1,
       });
 
@@ -537,7 +578,6 @@ function App() {
       setError("No supported .ts, .tsx, .js or .jsx files were found.");
 
       event.target.value = "";
-
       return;
     }
 
@@ -557,23 +597,17 @@ function App() {
       );
 
       setMode("project");
-
       setProjectFiles(files);
-
       setSelectedProjectFile(0);
 
       setFileFilter("all");
-
       setFileSort("issues");
 
       setIssueSeverityFilter("all");
-
       setIssueRuleFilter("all");
 
       setFileName(files[0].name);
-
       setLanguage(files[0].language);
-
       setCode(files[0].code);
 
       clearAnalysis();
@@ -594,11 +628,8 @@ function App() {
     setSelectedProjectFile(index);
 
     setFileName(file.name);
-
     setLanguage(file.language);
-
     setCode(file.code);
-
     setReport(file.report);
 
     clearMarkers();
@@ -611,7 +642,6 @@ function App() {
 
     editorRef.current?.setPosition({
       lineNumber: 1,
-
       column: 1,
     });
 
@@ -634,7 +664,6 @@ function App() {
     }
 
     const lineNumber = issue.line;
-
     const column = issue.column ?? 1;
 
     editor.revealLineInCenter(lineNumber);
@@ -647,9 +676,7 @@ function App() {
     if (issue.snippet) {
       editor.setSelection({
         startLineNumber: lineNumber,
-
         startColumn: column,
-
         endLineNumber: lineNumber,
 
         endColumn: column + issue.snippet.length,
@@ -665,11 +692,8 @@ function App() {
     setSelectedProjectFile(fileIndex);
 
     setFileName(file.name);
-
     setLanguage(file.language);
-
     setCode(file.code);
-
     setReport(file.report);
 
     clearMarkers();
@@ -695,7 +719,6 @@ function App() {
 
       body: JSON.stringify({
         code: sourceCode,
-
         config: analyzerConfig,
       }),
     });
@@ -711,7 +734,6 @@ function App() {
 
   const analyzeCode = async () => {
     setLoading(true);
-
     setError("");
 
     try {
@@ -733,7 +755,6 @@ function App() {
     }
 
     setLoading(true);
-
     setError("");
 
     try {
@@ -765,9 +786,7 @@ function App() {
 
   const switchToCodeMode = () => {
     setMode("code");
-
     setSelectedProjectFile(null);
-
     clearAnalysis();
   };
 
@@ -823,7 +842,6 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
-
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
@@ -835,6 +853,20 @@ function App() {
               <h2>Analyzer settings</h2>
 
               <p>Customize the rules and thresholds used during analysis.</p>
+
+              <div className="preset-buttons">
+                <button type="button" onClick={() => applyPreset("strict")}>
+                  Strict
+                </button>
+
+                <button type="button" onClick={() => applyPreset("balanced")}>
+                  Balanced
+                </button>
+
+                <button type="button" onClick={() => applyPreset("relaxed")}>
+                  Relaxed
+                </button>
+              </div>
             </div>
 
             <button
@@ -1234,7 +1266,6 @@ function App() {
                 },
 
                 fontSize: 15,
-
                 lineHeight: 24,
 
                 fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
@@ -1245,7 +1276,6 @@ function App() {
 
                 padding: {
                   top: 16,
-
                   bottom: 16,
                 },
 
