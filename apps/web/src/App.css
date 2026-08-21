@@ -1621,6 +1621,81 @@ button:disabled {
   font-size: 12px;
 }
 
+.report-export-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+
+  margin: 18px 0;
+  padding: 14px;
+
+  border: 1px solid #2b323e;
+  border-radius: 10px;
+
+  background: #0d1117;
+}
+
+.report-export-actions>div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-export-actions strong {
+  color: #edf1f6;
+  font-size: 12px;
+}
+
+.report-export-actions span {
+  color: #778294;
+  font-size: 10px;
+}
+
+.report-export-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.report-export-buttons button {
+  width: auto;
+  margin: 0;
+  padding: 7px 11px;
+
+  border: 1px solid #374152;
+  border-radius: 7px;
+
+  background: #151b24;
+  color: #c6ceda;
+
+  cursor: pointer;
+
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.report-export-buttons button:hover {
+  border-color: #58677d;
+  background: #202936;
+  color: #ffffff;
+}
+
+@media (max-width: 650px) {
+  .report-export-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .report-export-buttons {
+    width: 100%;
+  }
+
+  .report-export-buttons button {
+    flex: 1;
+  }
+}
+
 @media (max-width: 700px) {
   .trend-header {
     flex-direction: column;

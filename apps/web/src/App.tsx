@@ -659,11 +659,13 @@ function App() {
     invalidateAnalysis();
   };
 
-  const exportAnalyzerConfig = () => {
-    const json = JSON.stringify(analyzerConfig, null, 2);
-
-    const blob = new Blob([json], {
-      type: "application/json",
+  const downloadTextFile = (
+    content: string,
+    fileNameToDownload: string,
+    mimeType: string,
+  ) => {
+    const blob = new Blob([content], {
+      type: mimeType,
     });
 
     const url = URL.createObjectURL(blob);
@@ -672,7 +674,7 @@ function App() {
 
     link.href = url;
 
-    link.download = "codescope-config.json";
+    link.download = fileNameToDownload;
 
     document.body.appendChild(link);
 
@@ -681,6 +683,274 @@ function App() {
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
+  };
+
+  const createSafeFileName = (value: string) => {
+    return (
+      value
+        .toLowerCase()
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "") || "analysis"
+    );
+  };
+
+  const escapeCsvValue = (value: string | number | undefined) => {
+    const stringValue = value === undefined ? "" : String(value);
+
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  };
+
+  const getProjectName = (files: ProjectFile[]) => {
+    const firstPath = files[0]?.path;
+
+    if (!firstPath) {
+      return "Project";
+    }
+
+    const normalizedPath = firstPath.replace(/\\/g, "/");
+
+    const parts = normalizedPath.split("/");
+
+    if (parts.length > 1) {
+      return parts[0];
+    }
+
+    return "Project";
+  };
+
+  const exportReportJson = () => {
+    const exportedAt = new Date().toISOString();
+
+    if (mode === "code") {
+      if (!report) {
+        return;
+      }
+
+      const payload = {
+        application: "CodeScope",
+
+        version: 1,
+
+        exportedAt,
+
+        analysis: {
+          mode: "code",
+
+          file: fileName,
+
+          language,
+
+          preset: activePreset,
+
+          config: analyzerConfig,
+
+          report,
+        },
+      };
+
+      const safeName = createSafeFileName(fileName);
+
+      downloadTextFile(
+        JSON.stringify(payload, null, 2),
+
+        `codescope-${safeName}-report.json`,
+
+        "application/json",
+      );
+
+      return;
+    }
+
+    if (!projectSummary) {
+      return;
+    }
+
+    const projectName = getProjectName(projectFiles);
+
+    const payload = {
+      application: "CodeScope",
+
+      version: 1,
+
+      exportedAt,
+
+      analysis: {
+        mode: "project",
+
+        project: projectName,
+
+        preset: activePreset,
+
+        config: analyzerConfig,
+
+        summary: projectSummary,
+
+        files: projectFiles.map((file) => ({
+          name: file.name,
+
+          path: file.path,
+
+          language: file.language,
+
+          report: file.report,
+        })),
+      },
+    };
+
+    const safeName = createSafeFileName(projectName);
+
+    downloadTextFile(
+      JSON.stringify(payload, null, 2),
+
+      `codescope-${safeName}-project-report.json`,
+
+      "application/json",
+    );
+  };
+
+  const exportReportCsv = () => {
+    const headers = [
+      "Mode",
+      "File",
+      "Rule",
+      "Severity",
+      "Message",
+      "Line",
+      "Column",
+      "Snippet",
+      "Suggestion",
+      "Score",
+      "Preset",
+    ];
+
+    const rows: string[][] = [];
+
+    if (mode === "code") {
+      if (!report) {
+        return;
+      }
+
+      if (report.issues.length === 0) {
+        rows.push([
+          "code",
+          fileName,
+          "",
+          "",
+          "No issues detected.",
+          "",
+          "",
+          "",
+          "",
+          String(report.score),
+          activePreset,
+        ]);
+      } else {
+        for (const issue of report.issues) {
+          rows.push([
+            "code",
+            fileName,
+            issue.rule,
+            issue.severity,
+            issue.message,
+            String(issue.line),
+            issue.column ? String(issue.column) : "",
+            issue.snippet ?? "",
+            issue.suggestion ?? "",
+            String(report.score),
+            activePreset,
+          ]);
+        }
+      }
+
+      const csv = [headers, ...rows]
+        .map((row) => row.map(escapeCsvValue).join(","))
+        .join("\n");
+
+      const safeName = createSafeFileName(fileName);
+
+      downloadTextFile(
+        csv,
+
+        `codescope-${safeName}-report.csv`,
+
+        "text/csv;charset=utf-8",
+      );
+
+      return;
+    }
+
+    if (!projectSummary) {
+      return;
+    }
+
+    for (const file of projectFiles) {
+      if (!file.report) {
+        continue;
+      }
+
+      if (file.report.issues.length === 0) {
+        rows.push([
+          "project",
+          file.path,
+          "",
+          "",
+          "No issues detected.",
+          "",
+          "",
+          "",
+          "",
+          String(file.report.score),
+          activePreset,
+        ]);
+
+        continue;
+      }
+
+      for (const issue of file.report.issues) {
+        rows.push([
+          "project",
+          file.path,
+          issue.rule,
+          issue.severity,
+          issue.message,
+          String(issue.line),
+          issue.column ? String(issue.column) : "",
+          issue.snippet ?? "",
+          issue.suggestion ?? "",
+          String(file.report.score),
+          activePreset,
+        ]);
+      }
+    }
+
+    const csv = [headers, ...rows]
+      .map((row) => row.map(escapeCsvValue).join(","))
+      .join("\n");
+
+    const projectName = getProjectName(projectFiles);
+
+    const safeName = createSafeFileName(projectName);
+
+    downloadTextFile(
+      csv,
+
+      `codescope-${safeName}-project-report.csv`,
+
+      "text/csv;charset=utf-8",
+    );
+  };
+
+  const exportAnalyzerConfig = () => {
+    const json = JSON.stringify(analyzerConfig, null, 2);
+
+    downloadTextFile(
+      json,
+
+      "codescope-config.json",
+
+      "application/json",
+    );
   };
 
   const openConfigPicker = () => {
@@ -1095,24 +1365,6 @@ function App() {
     return data.report;
   };
 
-  const getProjectName = (files: ProjectFile[]) => {
-    const firstPath = files[0]?.path;
-
-    if (!firstPath) {
-      return "Project";
-    }
-
-    const normalizedPath = firstPath.replace(/\\/g, "/");
-
-    const parts = normalizedPath.split("/");
-
-    if (parts.length > 1) {
-      return parts[0];
-    }
-
-    return "Project";
-  };
-
   const createProjectSummary = (files: ProjectFile[]): ProjectSummary => {
     const reports = files
       .map((file) => file.report)
@@ -1347,6 +1599,9 @@ function App() {
 
     return "unchanged";
   };
+
+  const canExportReport =
+    mode === "project" ? projectSummary !== null : report !== null;
 
   return (
     <main className="app">
@@ -2337,6 +2592,26 @@ ${formatHistoryDate(point.entry.createdAt)}`}
 
                 <span>Low: {report.summary.low}</span>
               </div>
+
+              {canExportReport && (
+                <div className="report-export-actions">
+                  <div>
+                    <strong>Export report</strong>
+
+                    <span>Download the current analysis results.</span>
+                  </div>
+
+                  <div className="report-export-buttons">
+                    <button type="button" onClick={exportReportJson}>
+                      Export JSON
+                    </button>
+
+                    <button type="button" onClick={exportReportCsv}>
+                      Export CSV
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="issues">
                 {report.issues.map((issue, index) => (
