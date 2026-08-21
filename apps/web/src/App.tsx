@@ -13,6 +13,7 @@ type Language =
 type AnalysisMode = "code" | "project";
 type FileFilter = "all" | "issues" | "clean";
 type FileSort = "issues" | "name";
+type IssueSeverityFilter = "all" | Severity;
 
 interface CodeIssue {
   rule: string;
@@ -99,6 +100,11 @@ function App() {
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
 
   const [fileSort, setFileSort] = useState<FileSort>("issues");
+
+  const [issueSeverityFilter, setIssueSeverityFilter] =
+    useState<IssueSeverityFilter>("all");
+
+  const [issueRuleFilter, setIssueRuleFilter] = useState("all");
 
   const [loading, setLoading] = useState(false);
 
@@ -255,6 +261,26 @@ function App() {
     });
   }, [projectFiles]);
 
+  const availableIssueRules = useMemo(() => {
+    return Array.from(
+      new Set(projectIssues.map((projectIssue) => projectIssue.issue.rule)),
+    ).sort((a, b) => a.localeCompare(b));
+  }, [projectIssues]);
+
+  const visibleProjectIssues = useMemo(() => {
+    return projectIssues.filter((projectIssue) => {
+      const severityMatches =
+        issueSeverityFilter === "all" ||
+        projectIssue.issue.severity === issueSeverityFilter;
+
+      const ruleMatches =
+        issueRuleFilter === "all" ||
+        projectIssue.issue.rule === issueRuleFilter;
+
+      return severityMatches && ruleMatches;
+    });
+  }, [projectIssues, issueSeverityFilter, issueRuleFilter]);
+
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
@@ -312,13 +338,10 @@ function App() {
         startLineNumber: line,
         startColumn: column,
         endLineNumber: line,
-
         endColumn: issue.snippet ? column + issue.snippet.length : column + 1,
-
         message: issue.suggestion
           ? `${issue.message}\n\nSuggestion: ${issue.suggestion}`
           : issue.message,
-
         severity,
         source: "CodeScope",
         code: issue.rule,
@@ -402,9 +425,7 @@ function App() {
 
       setMode("code");
       setFileName(file.name);
-
       setLanguage(getLanguageFromFile(file.name));
-
       setCode(content);
 
       clearAnalysis();
@@ -442,13 +463,9 @@ function App() {
       const files: ProjectFile[] = await Promise.all(
         supportedFiles.map(async (file) => ({
           name: file.name,
-
           path: file.webkitRelativePath || file.name,
-
           code: await file.text(),
-
           language: getLanguageFromFile(file.name),
-
           report: null,
         })),
       );
@@ -459,6 +476,9 @@ function App() {
 
       setFileFilter("all");
       setFileSort("issues");
+
+      setIssueSeverityFilter("all");
+      setIssueRuleFilter("all");
 
       setFileName(files[0].name);
       setLanguage(files[0].language);
@@ -532,7 +552,6 @@ function App() {
         startLineNumber: lineNumber,
         startColumn: column,
         endLineNumber: lineNumber,
-
         endColumn: column + issue.snippet.length,
       });
     }
@@ -544,7 +563,6 @@ function App() {
     const { issue, file, fileIndex } = projectIssue;
 
     setSelectedProjectFile(fileIndex);
-
     setFileName(file.name);
     setLanguage(file.language);
     setCode(file.code);
@@ -741,45 +759,89 @@ function App() {
             <div>
               <h2>Project issues</h2>
 
-              <p>All detected issues across the project.</p>
+              <p>Filter and explore all detected issues.</p>
             </div>
 
-            <span>{projectIssues.length}</span>
+            <span>
+              {visibleProjectIssues.length} / {projectIssues.length}
+            </span>
           </div>
 
-          <div className="project-issues-list">
-            {projectIssues.map((projectIssue, index) => (
-              <button
-                type="button"
-                className={`project-issue-item ${projectIssue.issue.severity}`}
-                key={`${projectIssue.file.path}-${projectIssue.issue.rule}-${projectIssue.issue.line}-${index}`}
-                onClick={() => goToProjectIssue(projectIssue)}
-              >
-                <div className="project-issue-top">
-                  <strong>{projectIssue.issue.rule}</strong>
-
-                  <span
-                    className={`project-issue-severity ${projectIssue.issue.severity}`}
+          <div className="project-issue-controls">
+            <div className="issue-severity-filters">
+              {(["all", "high", "medium", "low"] as IssueSeverityFilter[]).map(
+                (severity) => (
+                  <button
+                    key={severity}
+                    type="button"
+                    className={issueSeverityFilter === severity ? "active" : ""}
+                    onClick={() => setIssueSeverityFilter(severity)}
                   >
-                    {projectIssue.issue.severity}
-                  </span>
-                </div>
+                    {severity === "all"
+                      ? "All"
+                      : severity.charAt(0).toUpperCase() + severity.slice(1)}
+                  </button>
+                ),
+              )}
+            </div>
 
-                <p>{projectIssue.issue.message}</p>
+            <label className="issue-rule-filter">
+              <span>Rule</span>
 
-                <div className="project-issue-location">
-                  <span>{projectIssue.file.name}</span>
+              <select
+                value={issueRuleFilter}
+                onChange={(event) => setIssueRuleFilter(event.target.value)}
+              >
+                <option value="all">All rules</option>
 
-                  <small>
-                    Line {projectIssue.issue.line}
-                    {projectIssue.issue.column
-                      ? `, Column ${projectIssue.issue.column}`
-                      : ""}
-                  </small>
-                </div>
-              </button>
-            ))}
+                {availableIssueRules.map((rule) => (
+                  <option key={rule} value={rule}>
+                    {rule}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
+
+          {visibleProjectIssues.length === 0 ? (
+            <div className="no-project-issues">
+              No issues match the selected filters.
+            </div>
+          ) : (
+            <div className="project-issues-list">
+              {visibleProjectIssues.map((projectIssue, index) => (
+                <button
+                  type="button"
+                  className={`project-issue-item ${projectIssue.issue.severity}`}
+                  key={`${projectIssue.file.path}-${projectIssue.issue.rule}-${projectIssue.issue.line}-${index}`}
+                  onClick={() => goToProjectIssue(projectIssue)}
+                >
+                  <div className="project-issue-top">
+                    <strong>{projectIssue.issue.rule}</strong>
+
+                    <span
+                      className={`project-issue-severity ${projectIssue.issue.severity}`}
+                    >
+                      {projectIssue.issue.severity}
+                    </span>
+                  </div>
+
+                  <p>{projectIssue.issue.message}</p>
+
+                  <div className="project-issue-location">
+                    <span>{projectIssue.file.name}</span>
+
+                    <small>
+                      Line {projectIssue.issue.line}
+                      {projectIssue.issue.column
+                        ? `, Column ${projectIssue.issue.column}`
+                        : ""}
+                    </small>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -923,21 +985,15 @@ function App() {
                 minimap: {
                   enabled: false,
                 },
-
                 fontSize: 15,
                 lineHeight: 24,
-
                 fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
-
                 scrollBeyondLastLine: false,
-
                 automaticLayout: true,
-
                 padding: {
                   top: 16,
                   bottom: 16,
                 },
-
                 wordWrap: "on",
               }}
             />
@@ -987,16 +1043,19 @@ function App() {
               <div className="metrics">
                 <div>
                   <strong>{report.summary.totalIssues}</strong>
+
                   <span>Issues</span>
                 </div>
 
                 <div>
                   <strong>{report.metrics.linesOfCode}</strong>
+
                   <span>Lines</span>
                 </div>
 
                 <div>
                   <strong>{report.metrics.functions}</strong>
+
                   <span>Functions</span>
                 </div>
               </div>

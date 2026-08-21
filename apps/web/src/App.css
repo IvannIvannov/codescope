@@ -742,6 +742,105 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.project-issue-controls {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.issue-severity-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.issue-severity-filters button {
+  width: auto;
+  margin: 0;
+  padding: 7px 12px;
+
+  border: 1px solid #2b323e;
+  border-radius: 7px;
+
+  background: transparent;
+  color: #8f98a8;
+
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.issue-severity-filters button:hover {
+  background: #181d26;
+  color: #f5f7fb;
+}
+
+.issue-severity-filters button.active {
+  border-color: #4a5567;
+  background: #202631;
+  color: #f5f7fb;
+}
+
+.issue-rule-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  min-width: 190px;
+}
+
+.issue-rule-filter>span {
+  color: #8f98a8;
+
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.issue-rule-filter select {
+  padding: 8px 10px;
+
+  border: 1px solid #2b323e;
+  border-radius: 7px;
+
+  outline: none;
+
+  background: #0f131a;
+  color: #f5f7fb;
+
+  font: inherit;
+  font-size: 12px;
+}
+
+.issue-rule-filter select:focus {
+  border-color: #566176;
+}
+
+.no-project-issues {
+  padding: 32px;
+
+  border: 1px dashed #2b323e;
+  border-radius: 10px;
+
+  color: #7f8999;
+
+  text-align: center;
+  font-size: 13px;
+}
+
+@media (max-width: 700px) {
+  .project-issue-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .issue-rule-filter {
+    width: 100%;
+  }
+}
+
 @media (max-width: 1200px) {
   .project-issues-list {
     grid-template-columns:
