@@ -1,4 +1,5 @@
 import { SyntaxKind } from "ts-morph";
+
 import type { AnalysisRule, CodeIssue } from "../types.js";
 
 export const noConsoleRule: AnalysisRule = {
@@ -12,6 +13,12 @@ export const noConsoleRule: AnalysisRule = {
     );
 
     for (const expression of propertyAccessExpressions) {
+      const expressionText = expression.getExpression().getText();
+
+      if (expressionText !== "console") {
+        continue;
+      }
+
       const position = sourceFile.getLineAndColumnAtPos(expression.getStart());
 
       issues.push({
