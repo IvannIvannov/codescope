@@ -95,8 +95,19 @@ interface AnalysisHistoryEntry {
   functions: number;
 }
 
+interface HistoryComparison {
+  older: AnalysisHistoryEntry;
+  newer: AnalysisHistoryEntry;
+  score: number;
+  totalIssues: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
 const STORAGE_KEY = "codescope-analyzer-config";
 const HISTORY_STORAGE_KEY = "codescope-analysis-history";
+
 const MAX_HISTORY_ITEMS = 10;
 
 const initialCode = `function test(value: any) {
@@ -152,7 +163,9 @@ function App() {
   const [mode, setMode] = useState<AnalysisMode>("code");
 
   const [code, setCode] = useState(initialCode);
+
   const [fileName, setFileName] = useState("example.ts");
+
   const [language, setLanguage] = useState<Language>("typescript");
 
   const [report, setReport] = useState<AnalysisReport | null>(null);
@@ -164,6 +177,7 @@ function App() {
   );
 
   const [fileFilter, setFileFilter] = useState<FileFilter>("all");
+
   const [fileSort, setFileSort] = useState<FileSort>("issues");
 
   const [issueSeverityFilter, setIssueSeverityFilter] =
@@ -215,10 +229,14 @@ function App() {
     }
   });
 
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
+
   const [settingsOpen, setSettingsOpen] = useState(false);
+
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -423,6 +441,43 @@ function App() {
     });
   }, [projectIssues, issueSeverityFilter, issueRuleFilter]);
 
+  const historyComparison = useMemo<HistoryComparison | null>(() => {
+    if (selectedHistoryIds.length !== 2) {
+      return null;
+    }
+
+    const selectedEntries = selectedHistoryIds
+      .map((id) => analysisHistory.find((entry) => entry.id === id))
+      .filter((entry): entry is AnalysisHistoryEntry => entry !== undefined);
+
+    if (selectedEntries.length !== 2) {
+      return null;
+    }
+
+    const sortedEntries = [...selectedEntries].sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
+
+    const older = sortedEntries[0];
+    const newer = sortedEntries[1];
+
+    return {
+      older,
+      newer,
+
+      score: newer.score - older.score,
+
+      totalIssues: newer.totalIssues - older.totalIssues,
+
+      high: newer.high - older.high,
+
+      medium: newer.medium - older.medium,
+
+      low: newer.low - older.low,
+    };
+  }, [selectedHistoryIds, analysisHistory]);
+
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
@@ -477,7 +532,9 @@ function App() {
   ) => {
     const historyEntry: AnalysisHistoryEntry = {
       ...entry,
+
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+
       createdAt: new Date().toISOString(),
     };
 
@@ -488,6 +545,25 @@ function App() {
 
   const clearHistory = () => {
     setAnalysisHistory([]);
+    setSelectedHistoryIds([]);
+  };
+
+  const toggleHistorySelection = (id: string) => {
+    setSelectedHistoryIds((currentSelection) => {
+      if (currentSelection.includes(id)) {
+        return currentSelection.filter((selectedId) => selectedId !== id);
+      }
+
+      if (currentSelection.length >= 2) {
+        return [currentSelection[1], id];
+      }
+
+      return [...currentSelection, id];
+    });
+  };
+
+  const clearHistorySelection = () => {
+    setSelectedHistoryIds([]);
   };
 
   const handleConfigChange = <K extends keyof AnalyzerConfig>(
@@ -533,7 +609,9 @@ function App() {
     link.download = "codescope-config.json";
 
     document.body.appendChild(link);
+
     link.click();
+
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
@@ -789,17 +867,23 @@ function App() {
       );
 
       setMode("project");
+
       setProjectFiles(files);
+
       setSelectedProjectFile(0);
 
       setFileFilter("all");
+
       setFileSort("issues");
 
       setIssueSeverityFilter("all");
+
       setIssueRuleFilter("all");
 
       setFileName(files[0].name);
+
       setLanguage(files[0].language);
+
       setCode(files[0].code);
 
       clearAnalysis();
@@ -820,8 +904,11 @@ function App() {
     setSelectedProjectFile(index);
 
     setFileName(file.name);
+
     setLanguage(file.language);
+
     setCode(file.code);
+
     setReport(file.report);
 
     clearMarkers();
@@ -856,6 +943,7 @@ function App() {
     }
 
     const lineNumber = issue.line;
+
     const column = issue.column ?? 1;
 
     editor.revealLineInCenter(lineNumber);
@@ -868,7 +956,9 @@ function App() {
     if (issue.snippet) {
       editor.setSelection({
         startLineNumber: lineNumber,
+
         startColumn: column,
+
         endLineNumber: lineNumber,
 
         endColumn: column + issue.snippet.length,
@@ -884,8 +974,11 @@ function App() {
     setSelectedProjectFile(fileIndex);
 
     setFileName(file.name);
+
     setLanguage(file.language);
+
     setCode(file.code);
+
     setReport(file.report);
 
     clearMarkers();
@@ -911,6 +1004,7 @@ function App() {
 
       body: JSON.stringify({
         code: sourceCode,
+
         config: analyzerConfig,
       }),
     });
@@ -1024,14 +1118,23 @@ function App() {
 
       addHistoryEntry({
         mode: "code",
+
         name: fileName,
+
         score: newReport.score,
+
         totalIssues: newReport.summary.totalIssues,
+
         high: newReport.summary.high,
+
         medium: newReport.summary.medium,
+
         low: newReport.summary.low,
+
         preset: activePreset,
+
         linesOfCode: newReport.metrics.linesOfCode,
+
         functions: newReport.metrics.functions,
       });
     } catch {
@@ -1104,7 +1207,9 @@ function App() {
 
   const switchToCodeMode = () => {
     setMode("code");
+
     setSelectedProjectFile(null);
+
     clearAnalysis();
   };
 
@@ -1120,6 +1225,38 @@ function App() {
 
       timeStyle: "short",
     });
+  };
+
+  const formatDelta = (value: number) => {
+    if (value > 0) {
+      return `+${value}`;
+    }
+
+    return `${value}`;
+  };
+
+  const getScoreDeltaClass = (value: number) => {
+    if (value > 0) {
+      return "improved";
+    }
+
+    if (value < 0) {
+      return "worse";
+    }
+
+    return "unchanged";
+  };
+
+  const getIssueDeltaClass = (value: number) => {
+    if (value < 0) {
+      return "improved";
+    }
+
+    if (value > 0) {
+      return "worse";
+    }
+
+    return "unchanged";
   };
 
   return (
@@ -1182,6 +1319,7 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
+
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
@@ -1200,18 +1338,30 @@ function App() {
             <div>
               <h2>Analysis history</h2>
 
-              <p>Your latest successful CodeScope analyses.</p>
+              <p>Select two analyses to compare code quality progress.</p>
             </div>
 
-            {analysisHistory.length > 0 && (
-              <button
-                className="clear-history-button"
-                type="button"
-                onClick={clearHistory}
-              >
-                Clear history
-              </button>
-            )}
+            <div className="history-header-actions">
+              {selectedHistoryIds.length > 0 && (
+                <button
+                  className="history-secondary-button"
+                  type="button"
+                  onClick={clearHistorySelection}
+                >
+                  Clear selection
+                </button>
+              )}
+
+              {analysisHistory.length > 0 && (
+                <button
+                  className="clear-history-button"
+                  type="button"
+                  onClick={clearHistory}
+                >
+                  Clear history
+                </button>
+              )}
+            </div>
           </div>
 
           {analysisHistory.length === 0 ? (
@@ -1223,56 +1373,199 @@ function App() {
               </span>
             </div>
           ) : (
-            <div className="history-list">
-              {analysisHistory.map((historyItem) => (
-                <article className="history-item" key={historyItem.id}>
-                  <div className="history-item-top">
-                    <div className="history-item-title">
-                      <span className={`history-mode ${historyItem.mode}`}>
-                        {historyItem.mode === "project" ? "Project" : "Code"}
+            <>
+              <div className="history-selection-info">
+                <span>{selectedHistoryIds.length} / 2 selected</span>
+
+                <small>Choose two analyses to see the difference.</small>
+              </div>
+
+              {historyComparison && (
+                <section className="history-comparison">
+                  <div className="comparison-header">
+                    <div>
+                      <span className="comparison-label">Comparison</span>
+
+                      <h3>
+                        {historyComparison.older.name} →{" "}
+                        {historyComparison.newer.name}
+                      </h3>
+                    </div>
+
+                    <div className="comparison-period">
+                      <span>
+                        {formatHistoryDate(historyComparison.older.createdAt)}
                       </span>
 
-                      <strong>{historyItem.name}</strong>
-                    </div>
+                      <span>→</span>
 
-                    <div className="history-score">
-                      <strong>{historyItem.score}</strong>
-
-                      <span>/100</span>
+                      <span>
+                        {formatHistoryDate(historyComparison.newer.createdAt)}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="history-meta">
-                    <span>{historyItem.totalIssues} issues</span>
+                  <div className="comparison-grid">
+                    <div className="comparison-card">
+                      <span>Score</span>
 
-                    <span>High: {historyItem.high}</span>
+                      <strong
+                        className={getScoreDeltaClass(historyComparison.score)}
+                      >
+                        {formatDelta(historyComparison.score)}
+                      </strong>
 
-                    <span>Medium: {historyItem.medium}</span>
+                      <small>
+                        {historyComparison.older.score} →{" "}
+                        {historyComparison.newer.score}
+                      </small>
+                    </div>
 
-                    <span>Low: {historyItem.low}</span>
+                    <div className="comparison-card">
+                      <span>Issues</span>
 
-                    {historyItem.files !== undefined && (
-                      <span>{historyItem.files} files</span>
-                    )}
+                      <strong
+                        className={getIssueDeltaClass(
+                          historyComparison.totalIssues,
+                        )}
+                      >
+                        {formatDelta(historyComparison.totalIssues)}
+                      </strong>
 
-                    <span>{historyItem.linesOfCode} lines</span>
+                      <small>
+                        {historyComparison.older.totalIssues} →{" "}
+                        {historyComparison.newer.totalIssues}
+                      </small>
+                    </div>
 
-                    <span>{historyItem.functions} functions</span>
+                    <div className="comparison-card">
+                      <span>High</span>
+
+                      <strong
+                        className={getIssueDeltaClass(historyComparison.high)}
+                      >
+                        {formatDelta(historyComparison.high)}
+                      </strong>
+
+                      <small>
+                        {historyComparison.older.high} →{" "}
+                        {historyComparison.newer.high}
+                      </small>
+                    </div>
+
+                    <div className="comparison-card">
+                      <span>Medium</span>
+
+                      <strong
+                        className={getIssueDeltaClass(historyComparison.medium)}
+                      >
+                        {formatDelta(historyComparison.medium)}
+                      </strong>
+
+                      <small>
+                        {historyComparison.older.medium} →{" "}
+                        {historyComparison.newer.medium}
+                      </small>
+                    </div>
+
+                    <div className="comparison-card">
+                      <span>Low</span>
+
+                      <strong
+                        className={getIssueDeltaClass(historyComparison.low)}
+                      >
+                        {formatDelta(historyComparison.low)}
+                      </strong>
+
+                      <small>
+                        {historyComparison.older.low} →{" "}
+                        {historyComparison.newer.low}
+                      </small>
+                    </div>
                   </div>
+                </section>
+              )}
 
-                  <div className="history-item-footer">
-                    <span>
-                      Preset:{" "}
-                      <strong>{formatPresetName(historyItem.preset)}</strong>
-                    </span>
+              <div className="history-list">
+                {analysisHistory.map((historyItem) => {
+                  const isSelected = selectedHistoryIds.includes(
+                    historyItem.id,
+                  );
 
-                    <time dateTime={historyItem.createdAt}>
-                      {formatHistoryDate(historyItem.createdAt)}
-                    </time>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  return (
+                    <article
+                      className={
+                        isSelected ? "history-item selected" : "history-item"
+                      }
+                      key={historyItem.id}
+                    >
+                      <div className="history-item-top">
+                        <div className="history-item-title">
+                          <button
+                            className={
+                              isSelected
+                                ? "history-compare-button selected"
+                                : "history-compare-button"
+                            }
+                            type="button"
+                            onClick={() =>
+                              toggleHistorySelection(historyItem.id)
+                            }
+                          >
+                            {isSelected ? "Selected" : "Compare"}
+                          </button>
+
+                          <span className={`history-mode ${historyItem.mode}`}>
+                            {historyItem.mode === "project"
+                              ? "Project"
+                              : "Code"}
+                          </span>
+
+                          <strong>{historyItem.name}</strong>
+                        </div>
+
+                        <div className="history-score">
+                          <strong>{historyItem.score}</strong>
+
+                          <span>/100</span>
+                        </div>
+                      </div>
+
+                      <div className="history-meta">
+                        <span>{historyItem.totalIssues} issues</span>
+
+                        <span>High: {historyItem.high}</span>
+
+                        <span>Medium: {historyItem.medium}</span>
+
+                        <span>Low: {historyItem.low}</span>
+
+                        {historyItem.files !== undefined && (
+                          <span>{historyItem.files} files</span>
+                        )}
+
+                        <span>{historyItem.linesOfCode} lines</span>
+
+                        <span>{historyItem.functions} functions</span>
+                      </div>
+
+                      <div className="history-item-footer">
+                        <span>
+                          Preset:{" "}
+                          <strong>
+                            {formatPresetName(historyItem.preset)}
+                          </strong>
+                        </span>
+
+                        <time dateTime={historyItem.createdAt}>
+                          {formatHistoryDate(historyItem.createdAt)}
+                        </time>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </>
           )}
         </section>
       )}
@@ -1388,7 +1681,12 @@ function App() {
                 onChange={(event) =>
                   handleConfigChange(
                     "maxFunctionLength",
-                    Math.max(1, Number(event.target.value) || 1),
+
+                    Math.max(
+                      1,
+
+                      Number(event.target.value) || 1,
+                    ),
                   )
                 }
               />
@@ -1406,7 +1704,12 @@ function App() {
                 onChange={(event) =>
                   handleConfigChange(
                     "maxParameters",
-                    Math.max(1, Number(event.target.value) || 1),
+
+                    Math.max(
+                      1,
+
+                      Number(event.target.value) || 1,
+                    ),
                   )
                 }
               />
@@ -1424,7 +1727,12 @@ function App() {
                 onChange={(event) =>
                   handleConfigChange(
                     "maxComplexity",
-                    Math.max(1, Number(event.target.value) || 1),
+
+                    Math.max(
+                      1,
+
+                      Number(event.target.value) || 1,
+                    ),
                   )
                 }
               />
@@ -1442,7 +1750,12 @@ function App() {
                 onChange={(event) =>
                   handleConfigChange(
                     "maxNestingDepth",
-                    Math.max(1, Number(event.target.value) || 1),
+
+                    Math.max(
+                      1,
+
+                      Number(event.target.value) || 1,
+                    ),
                   )
                 }
               />
@@ -1733,6 +2046,7 @@ function App() {
                 },
 
                 fontSize: 15,
+
                 lineHeight: 24,
 
                 fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
@@ -1743,6 +2057,7 @@ function App() {
 
                 padding: {
                   top: 16,
+
                   bottom: 16,
                 },
 
