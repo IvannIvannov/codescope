@@ -15,6 +15,7 @@ type FileFilter = "all" | "issues" | "clean";
 type FileSort = "issues" | "name";
 type IssueSeverityFilter = "all" | Severity;
 type AnalyzerPreset = "strict" | "balanced" | "relaxed";
+type ActivePreset = AnalyzerPreset | "custom";
 
 interface AnalyzerConfig {
   noAny: boolean;
@@ -128,6 +129,7 @@ function App() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);
+  const configInputRef = useRef<HTMLInputElement | null>(null);
 
   const [mode, setMode] = useState<AnalysisMode>("code");
 
@@ -176,6 +178,29 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(analyzerConfig));
+  }, [analyzerConfig]);
+
+  const activePreset = useMemo<ActivePreset>(() => {
+    const entries = Object.entries(analyzerPresets) as [
+      AnalyzerPreset,
+      AnalyzerConfig,
+    ][];
+
+    for (const [name, preset] of entries) {
+      const matches =
+        preset.noAny === analyzerConfig.noAny &&
+        preset.noConsole === analyzerConfig.noConsole &&
+        preset.maxFunctionLength === analyzerConfig.maxFunctionLength &&
+        preset.maxParameters === analyzerConfig.maxParameters &&
+        preset.maxComplexity === analyzerConfig.maxComplexity &&
+        preset.maxNestingDepth === analyzerConfig.maxNestingDepth;
+
+      if (matches) {
+        return name;
+      }
+    }
+
+    return "custom";
   }, [analyzerConfig]);
 
   const projectSummary = useMemo<ProjectSummary | null>(() => {
@@ -424,6 +449,108 @@ function App() {
     });
 
     invalidateAnalysis();
+  };
+
+  const exportAnalyzerConfig = () => {
+    const json = JSON.stringify(analyzerConfig, null, 2);
+
+    const blob = new Blob([json], {
+      type: "application/json",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "codescope-config.json";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
+
+  const openConfigPicker = () => {
+    configInputRef.current?.click();
+  };
+
+  const isValidAnalyzerConfig = (
+    value: unknown,
+  ): value is Partial<AnalyzerConfig> => {
+    if (typeof value !== "object" || value === null) {
+      return false;
+    }
+
+    const config = value as Record<string, unknown>;
+
+    const booleanKeys = ["noAny", "noConsole"];
+
+    const numberKeys = [
+      "maxFunctionLength",
+      "maxParameters",
+      "maxComplexity",
+      "maxNestingDepth",
+    ];
+
+    for (const key of booleanKeys) {
+      if (key in config && typeof config[key] !== "boolean") {
+        return false;
+      }
+    }
+
+    for (const key of numberKeys) {
+      if (
+        key in config &&
+        (typeof config[key] !== "number" ||
+          !Number.isFinite(config[key]) ||
+          Number(config[key]) <= 0)
+      ) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handleConfigImport = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    try {
+      const text = await file.text();
+
+      const parsed: unknown = JSON.parse(text);
+
+      if (!isValidAnalyzerConfig(parsed)) {
+        throw new Error("Invalid configuration.");
+      }
+
+      const importedConfig: AnalyzerConfig = {
+        ...defaultAnalyzerConfig,
+        ...parsed,
+      };
+
+      setAnalyzerConfig(importedConfig);
+
+      invalidateAnalysis();
+
+      setError("");
+    } catch {
+      setError(
+        "Could not import config. Please select a valid CodeScope JSON config file.",
+      );
+    }
+
+    event.target.value = "";
   };
 
   const updateMarkers = (issues: CodeIssue[]) => {
@@ -790,6 +917,10 @@ function App() {
     clearAnalysis();
   };
 
+  const formatPresetName = (preset: ActivePreset) => {
+    return preset.charAt(0).toUpperCase() + preset.slice(1);
+  };
+
   return (
     <main className="app">
       <header className="header">
@@ -846,6 +977,14 @@ function App() {
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
 
+      <input
+        ref={configInputRef}
+        className="file-input"
+        type="file"
+        accept=".json,application/json"
+        onChange={handleConfigImport}
+      />
+
       {settingsOpen && (
         <section className="settings-panel">
           <div className="settings-header">
@@ -854,28 +993,64 @@ function App() {
 
               <p>Customize the rules and thresholds used during analysis.</p>
 
+              <div className="active-preset">
+                <span>Active preset:</span>
+
+                <strong>{formatPresetName(activePreset)}</strong>
+              </div>
+
               <div className="preset-buttons">
-                <button type="button" onClick={() => applyPreset("strict")}>
+                <button
+                  type="button"
+                  className={activePreset === "strict" ? "active" : ""}
+                  onClick={() => applyPreset("strict")}
+                >
                   Strict
                 </button>
 
-                <button type="button" onClick={() => applyPreset("balanced")}>
+                <button
+                  type="button"
+                  className={activePreset === "balanced" ? "active" : ""}
+                  onClick={() => applyPreset("balanced")}
+                >
                   Balanced
                 </button>
 
-                <button type="button" onClick={() => applyPreset("relaxed")}>
+                <button
+                  type="button"
+                  className={activePreset === "relaxed" ? "active" : ""}
+                  onClick={() => applyPreset("relaxed")}
+                >
                   Relaxed
                 </button>
               </div>
             </div>
 
-            <button
-              className="reset-settings-button"
-              type="button"
-              onClick={resetAnalyzerConfig}
-            >
-              Reset defaults
-            </button>
+            <div className="settings-actions">
+              <button
+                className="settings-secondary-button"
+                type="button"
+                onClick={exportAnalyzerConfig}
+              >
+                Export config
+              </button>
+
+              <button
+                className="settings-secondary-button"
+                type="button"
+                onClick={openConfigPicker}
+              >
+                Import config
+              </button>
+
+              <button
+                className="reset-settings-button"
+                type="button"
+                onClick={resetAnalyzerConfig}
+              >
+                Reset defaults
+              </button>
+            </div>
           </div>
 
           <div className="settings-grid">
@@ -926,7 +1101,7 @@ function App() {
                 }
               />
 
-              <small>Current default: 50 lines</small>
+              <small>Balanced default: 50 lines</small>
             </label>
 
             <label className="setting-number">
@@ -944,7 +1119,7 @@ function App() {
                 }
               />
 
-              <small>Current default: 4 parameters</small>
+              <small>Balanced default: 4 parameters</small>
             </label>
 
             <label className="setting-number">
@@ -962,7 +1137,7 @@ function App() {
                 }
               />
 
-              <small>Current default: 10</small>
+              <small>Balanced default: 10</small>
             </label>
 
             <label className="setting-number">
@@ -980,7 +1155,7 @@ function App() {
                 }
               />
 
-              <small>Current default: 3 levels</small>
+              <small>Balanced default: 3 levels</small>
             </label>
           </div>
         </section>

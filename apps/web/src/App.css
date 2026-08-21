@@ -1011,6 +1011,66 @@ button:disabled {
   color: #ffffff;
 }
 
+.active-preset {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  margin-top: 10px;
+
+  color: #7f8999;
+  font-size: 12px;
+}
+
+.active-preset strong {
+  color: #f5f7fb;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-secondary-button {
+  width: auto;
+  margin: 0;
+  padding: 8px 12px;
+
+  border: 1px solid #303744;
+  border-radius: 8px;
+
+  background: transparent;
+  color: #b8c0cc;
+
+  cursor: pointer;
+
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-secondary-button:hover {
+  background: #1a2029;
+  color: #ffffff;
+}
+
+.preset-buttons button.active {
+  border-color: #69778e;
+  background: #28303d;
+  color: #ffffff;
+}
+
+@media (max-width: 800px) {
+  .settings-actions {
+    width: 100%;
+  }
+
+  .settings-actions button {
+    flex: 1;
+  }
+}
+
 @media (max-width: 1000px) {
   .settings-grid {
     grid-template-columns:
