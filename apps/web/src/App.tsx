@@ -9,6 +9,7 @@ import ProjectSidebar from "./components/ProjectSidebar";
 import ProjectSummaryPanel from "./components/ProjectSummaryPanel";
 import ResultsPanel from "./components/ResultsPanel";
 import SettingsPanel from "./components/SettingsPanel";
+import AppHeader from "./components/AppHeader";
 
 import {
   HISTORY_STORAGE_KEY,
@@ -1483,47 +1484,15 @@ function App() {
 
   return (
     <main className="app">
-      <header className="header">
-        <div>
-          <h1>CodeScope</h1>
-
-          <p>Analyze your code quality in seconds.</p>
-        </div>
-
-        <div className="mode-switcher">
-          <button
-            className={mode === "code" ? "active" : ""}
-            type="button"
-            onClick={switchToCodeMode}
-          >
-            Code
-          </button>
-
-          <button
-            className={mode === "project" ? "active" : ""}
-            type="button"
-            onClick={openFolderPicker}
-          >
-            Project
-          </button>
-
-          <button
-            className={historyOpen ? "active" : ""}
-            type="button"
-            onClick={() => setHistoryOpen((current) => !current)}
-          >
-            History
-          </button>
-
-          <button
-            className={settingsOpen ? "active" : ""}
-            type="button"
-            onClick={() => setSettingsOpen((current) => !current)}
-          >
-            Settings
-          </button>
-        </div>
-      </header>
+      <AppHeader
+        mode={mode}
+        historyOpen={historyOpen}
+        settingsOpen={settingsOpen}
+        onCodeMode={switchToCodeMode}
+        onProjectMode={openFolderPicker}
+        onToggleHistory={() => setHistoryOpen((current) => !current)}
+        onToggleSettings={() => setSettingsOpen((current) => !current)}
+      />
 
       <input
         ref={fileInputRef}
