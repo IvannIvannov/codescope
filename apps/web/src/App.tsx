@@ -61,6 +61,12 @@ interface ProjectSummary {
   functions: number;
 }
 
+interface ProjectIssue {
+  issue: CodeIssue;
+  file: ProjectFile;
+  fileIndex: number;
+}
+
 const initialCode = `function test(value: any) {
   console.log(value);
 }`;
@@ -208,6 +214,47 @@ function App() {
     });
   }, [projectFiles, fileFilter, fileSort]);
 
+  const projectIssues = useMemo<ProjectIssue[]>(() => {
+    const issues: ProjectIssue[] = [];
+
+    projectFiles.forEach((file, fileIndex) => {
+      if (!file.report) {
+        return;
+      }
+
+      file.report.issues.forEach((issue) => {
+        issues.push({
+          issue,
+          file,
+          fileIndex,
+        });
+      });
+    });
+
+    const severityWeight: Record<Severity, number> = {
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
+
+    return issues.sort((a, b) => {
+      const severityDifference =
+        severityWeight[b.issue.severity] - severityWeight[a.issue.severity];
+
+      if (severityDifference !== 0) {
+        return severityDifference;
+      }
+
+      const fileComparison = a.file.name.localeCompare(b.file.name);
+
+      if (fileComparison !== 0) {
+        return fileComparison;
+      }
+
+      return a.issue.line - b.issue.line;
+    });
+  }, [projectFiles]);
+
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
@@ -354,7 +401,6 @@ function App() {
       const content = await file.text();
 
       setMode("code");
-
       setFileName(file.name);
 
       setLanguage(getLanguageFromFile(file.name));
@@ -484,9 +530,7 @@ function App() {
     if (issue.snippet) {
       editor.setSelection({
         startLineNumber: lineNumber,
-
         startColumn: column,
-
         endLineNumber: lineNumber,
 
         endColumn: column + issue.snippet.length,
@@ -494,6 +538,27 @@ function App() {
     }
 
     editor.focus();
+  };
+
+  const goToProjectIssue = (projectIssue: ProjectIssue) => {
+    const { issue, file, fileIndex } = projectIssue;
+
+    setSelectedProjectFile(fileIndex);
+
+    setFileName(file.name);
+    setLanguage(file.language);
+    setCode(file.code);
+    setReport(file.report);
+
+    clearMarkers();
+
+    if (file.report) {
+      setTimeout(() => {
+        updateMarkers(file.report?.issues ?? []);
+
+        goToIssue(issue);
+      }, 0);
+    }
   };
 
   const requestAnalysis = async (
@@ -670,6 +735,54 @@ function App() {
         </section>
       )}
 
+      {mode === "project" && projectIssues.length > 0 && (
+        <section className="project-issues">
+          <div className="project-issues-header">
+            <div>
+              <h2>Project issues</h2>
+
+              <p>All detected issues across the project.</p>
+            </div>
+
+            <span>{projectIssues.length}</span>
+          </div>
+
+          <div className="project-issues-list">
+            {projectIssues.map((projectIssue, index) => (
+              <button
+                type="button"
+                className={`project-issue-item ${projectIssue.issue.severity}`}
+                key={`${projectIssue.file.path}-${projectIssue.issue.rule}-${projectIssue.issue.line}-${index}`}
+                onClick={() => goToProjectIssue(projectIssue)}
+              >
+                <div className="project-issue-top">
+                  <strong>{projectIssue.issue.rule}</strong>
+
+                  <span
+                    className={`project-issue-severity ${projectIssue.issue.severity}`}
+                  >
+                    {projectIssue.issue.severity}
+                  </span>
+                </div>
+
+                <p>{projectIssue.issue.message}</p>
+
+                <div className="project-issue-location">
+                  <span>{projectIssue.file.name}</span>
+
+                  <small>
+                    Line {projectIssue.issue.line}
+                    {projectIssue.issue.column
+                      ? `, Column ${projectIssue.issue.column}`
+                      : ""}
+                  </small>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section
         className={`workspace ${mode === "project" ? "project-mode" : ""}`}
       >
@@ -812,7 +925,6 @@ function App() {
                 },
 
                 fontSize: 15,
-
                 lineHeight: 24,
 
                 fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
