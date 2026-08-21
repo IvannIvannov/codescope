@@ -11,10 +11,14 @@ type Language =
   | "javascriptreact";
 
 type AnalysisMode = "code" | "project";
+type TrendMode = "all" | AnalysisMode;
+
 type FileFilter = "all" | "issues" | "clean";
 type FileSort = "issues" | "name";
 type IssueSeverityFilter = "all" | Severity;
+
 type AnalyzerPreset = "strict" | "balanced" | "relaxed";
+
 type ActivePreset = AnalyzerPreset | "custom";
 
 interface AnalyzerConfig {
@@ -105,7 +109,14 @@ interface HistoryComparison {
   low: number;
 }
 
+interface TrendPoint {
+  entry: AnalysisHistoryEntry;
+  x: number;
+  y: number;
+}
+
 const STORAGE_KEY = "codescope-analyzer-config";
+
 const HISTORY_STORAGE_KEY = "codescope-analysis-history";
 
 const MAX_HISTORY_ITEMS = 10;
@@ -154,10 +165,13 @@ const analyzerPresets: Record<AnalyzerPreset, AnalyzerConfig> = {
 
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const folderInputRef = useRef<HTMLInputElement | null>(null);
+
   const configInputRef = useRef<HTMLInputElement | null>(null);
 
   const [mode, setMode] = useState<AnalysisMode>("code");
@@ -230,6 +244,8 @@ function App() {
   });
 
   const [selectedHistoryIds, setSelectedHistoryIds] = useState<string[]>([]);
+
+  const [trendMode, setTrendMode] = useState<TrendMode>("all");
 
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -331,11 +347,14 @@ function App() {
 
     return {
       score: Math.round(weightedScore),
+
       totalIssues,
       high,
       medium,
       low,
+
       files: projectFiles.length,
+
       linesOfCode,
       functions,
     };
@@ -460,6 +479,7 @@ function App() {
     );
 
     const older = sortedEntries[0];
+
     const newer = sortedEntries[1];
 
     return {
@@ -478,13 +498,57 @@ function App() {
     };
   }, [selectedHistoryIds, analysisHistory]);
 
+  const trendEntries = useMemo(() => {
+    const filtered = analysisHistory.filter(
+      (entry) => trendMode === "all" || entry.mode === trendMode,
+    );
+
+    return filtered.slice(0, MAX_HISTORY_ITEMS).reverse();
+  }, [analysisHistory, trendMode]);
+
+  const trendPoints = useMemo<TrendPoint[]>(() => {
+    if (trendEntries.length === 0) {
+      return [];
+    }
+
+    const leftPadding = 60;
+
+    const rightPadding = 960;
+
+    const topPadding = 30;
+
+    const chartHeight = 160;
+
+    return trendEntries.map((entry, index) => {
+      const x =
+        trendEntries.length === 1
+          ? 510
+          : leftPadding +
+            (index / (trendEntries.length - 1)) * (rightPadding - leftPadding);
+
+      const y = topPadding + ((100 - entry.score) / 100) * chartHeight;
+
+      return {
+        entry,
+        x,
+        y,
+      };
+    });
+  }, [trendEntries]);
+
+  const trendPolyline = useMemo(() => {
+    return trendPoints.map((point) => `${point.x},${point.y}`).join(" ");
+  }, [trendPoints]);
+
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+
     monacoRef.current = monaco;
   };
 
   const clearMarkers = () => {
     const editor = editorRef.current;
+
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -545,6 +609,7 @@ function App() {
 
   const clearHistory = () => {
     setAnalysisHistory([]);
+
     setSelectedHistoryIds([]);
   };
 
@@ -606,6 +671,7 @@ function App() {
     const link = document.createElement("a");
 
     link.href = url;
+
     link.download = "codescope-config.json";
 
     document.body.appendChild(link);
@@ -698,6 +764,7 @@ function App() {
 
   const updateMarkers = (issues: CodeIssue[]) => {
     const editor = editorRef.current;
+
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -719,11 +786,14 @@ function App() {
             : monaco.MarkerSeverity.Info;
 
       const line = issue.line;
+
       const column = issue.column ?? 1;
 
       return {
         startLineNumber: line,
+
         startColumn: column,
+
         endLineNumber: line,
 
         endColumn: issue.snippet ? column + issue.snippet.length : column + 1,
@@ -733,7 +803,9 @@ function App() {
           : issue.message,
 
         severity,
+
         source: "CodeScope",
+
         code: issue.rule,
       };
     });
@@ -807,6 +879,7 @@ function App() {
       );
 
       event.target.value = "";
+
       return;
     }
 
@@ -814,6 +887,7 @@ function App() {
       const content = await file.text();
 
       setMode("code");
+
       setFileName(file.name);
 
       setLanguage(getLanguageFromFile(file.name));
@@ -824,6 +898,7 @@ function App() {
 
       editorRef.current?.setPosition({
         lineNumber: 1,
+
         column: 1,
       });
 
@@ -848,6 +923,7 @@ function App() {
       setError("No supported .ts, .tsx, .js or .jsx files were found.");
 
       event.target.value = "";
+
       return;
     }
 
@@ -921,6 +997,7 @@ function App() {
 
     editorRef.current?.setPosition({
       lineNumber: 1,
+
       column: 1,
     });
 
@@ -1107,6 +1184,7 @@ function App() {
 
   const analyzeCode = async () => {
     setLoading(true);
+
     setError("");
 
     try {
@@ -1150,6 +1228,7 @@ function App() {
     }
 
     setLoading(true);
+
     setError("");
 
     try {
@@ -1224,6 +1303,16 @@ function App() {
       dateStyle: "medium",
 
       timeStyle: "short",
+    });
+  };
+
+  const formatTrendDate = (value: string) => {
+    const date = new Date(value);
+
+    return date.toLocaleDateString(undefined, {
+      month: "short",
+
+      day: "numeric",
     });
   };
 
@@ -1338,7 +1427,7 @@ function App() {
             <div>
               <h2>Analysis history</h2>
 
-              <p>Select two analyses to compare code quality progress.</p>
+              <p>Track and compare code quality over time.</p>
             </div>
 
             <div className="history-header-actions">
@@ -1374,6 +1463,120 @@ function App() {
             </div>
           ) : (
             <>
+              <section className="trend-panel">
+                <div className="trend-header">
+                  <div>
+                    <span className="trend-eyebrow">Score trend</span>
+
+                    <h3>Quality over time</h3>
+
+                    <p>Latest {trendEntries.length} analyses</p>
+                  </div>
+
+                  <div className="trend-filters">
+                    {(["all", "code", "project"] as TrendMode[]).map(
+                      (trendFilter) => (
+                        <button
+                          key={trendFilter}
+                          type="button"
+                          className={trendMode === trendFilter ? "active" : ""}
+                          onClick={() => setTrendMode(trendFilter)}
+                        >
+                          {trendFilter === "all"
+                            ? "All"
+                            : trendFilter.charAt(0).toUpperCase() +
+                              trendFilter.slice(1)}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                {trendPoints.length === 0 ? (
+                  <div className="trend-empty">
+                    No analyses match this filter.
+                  </div>
+                ) : (
+                  <div className="trend-chart-wrapper">
+                    <svg
+                      className="trend-chart"
+                      viewBox="0 0 1020 240"
+                      role="img"
+                      aria-label="CodeScope score trend"
+                    >
+                      {[100, 75, 50, 25, 0].map((score) => {
+                        const y = 30 + ((100 - score) / 100) * 160;
+
+                        return (
+                          <g key={score}>
+                            <line
+                              className="trend-grid-line"
+                              x1="60"
+                              x2="960"
+                              y1={y}
+                              y2={y}
+                            />
+
+                            <text className="trend-axis-label" x="20" y={y + 4}>
+                              {score}
+                            </text>
+                          </g>
+                        );
+                      })}
+
+                      {trendPoints.length > 1 && (
+                        <polyline
+                          className="trend-line"
+                          points={trendPolyline}
+                          fill="none"
+                        />
+                      )}
+
+                      {trendPoints.map((point, index) => (
+                        <g className="trend-point-group" key={point.entry.id}>
+                          <circle
+                            className={`trend-point ${point.entry.mode}`}
+                            cx={point.x}
+                            cy={point.y}
+                            r="7"
+                          >
+                            <title>
+                              {`${point.entry.name}
+Score: ${point.entry.score}/100
+Issues: ${point.entry.totalIssues}
+Preset: ${formatPresetName(point.entry.preset)}
+${formatHistoryDate(point.entry.createdAt)}`}
+                            </title>
+                          </circle>
+
+                          <text
+                            className="trend-score-label"
+                            x={point.x}
+                            y={point.y - 15}
+                            textAnchor="middle"
+                          >
+                            {point.entry.score}
+                          </text>
+
+                          <text
+                            className="trend-date-label"
+                            x={point.x}
+                            y="218"
+                            textAnchor="middle"
+                          >
+                            {index === 0 ||
+                            index === trendPoints.length - 1 ||
+                            trendPoints.length <= 5
+                              ? formatTrendDate(point.entry.createdAt)
+                              : ""}
+                          </text>
+                        </g>
+                      ))}
+                    </svg>
+                  </div>
+                )}
+              </section>
+
               <div className="history-selection-info">
                 <span>{selectedHistoryIds.length} / 2 selected</span>
 
