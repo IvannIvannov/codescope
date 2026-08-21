@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+
 import Editor, { type OnMount } from "@monaco-editor/react";
 
-import SettingsPanel from "./components/SettingsPanel";
 import HistoryPanel from "./components/HistoryPanel";
+import ProjectSidebar from "./components/ProjectSidebar";
+import SettingsPanel from "./components/SettingsPanel";
 
 import {
   HISTORY_STORAGE_KEY,
@@ -290,7 +292,9 @@ function App() {
 
     const severityWeight: Record<Severity, number> = {
       high: 3,
+
       medium: 2,
+
       low: 1,
     };
 
@@ -438,7 +442,9 @@ function App() {
 
   const clearAnalysis = () => {
     setReport(null);
+
     setError("");
+
     clearMarkers();
   };
 
@@ -451,7 +457,9 @@ function App() {
     );
 
     setReport(null);
+
     setError("");
+
     clearMarkers();
   };
 
@@ -505,6 +513,7 @@ function App() {
 
   const handleConfigChange = <K extends keyof AnalyzerConfig>(
     key: K,
+
     value: AnalyzerConfig[K],
   ) => {
     setAnalyzerConfig((currentConfig) => ({
@@ -533,7 +542,9 @@ function App() {
 
   const downloadTextFile = (
     content: string,
+
     fileNameToDownload: string,
+
     mimeType: string,
   ) => {
     const blob = new Blob([content], {
@@ -1712,95 +1723,16 @@ function App() {
         className={`workspace ${mode === "project" ? "project-mode" : ""}`}
       >
         {mode === "project" && (
-          <aside className="project-sidebar">
-            <div className="project-sidebar-header">
-              <div>
-                <h3>Project files</h3>
-
-                <span className="visible-files-count">
-                  {visibleProjectFiles.length} / {projectFiles.length}
-                </span>
-              </div>
-            </div>
-
-            <div className="file-filters">
-              <button
-                type="button"
-                className={fileFilter === "all" ? "active" : ""}
-                onClick={() => setFileFilter("all")}
-              >
-                All
-              </button>
-
-              <button
-                type="button"
-                className={fileFilter === "issues" ? "active" : ""}
-                onClick={() => setFileFilter("issues")}
-              >
-                Issues
-              </button>
-
-              <button
-                type="button"
-                className={fileFilter === "clean" ? "active" : ""}
-                onClick={() => setFileFilter("clean")}
-              >
-                Clean
-              </button>
-            </div>
-
-            <label className="sort-control">
-              <span>Sort by</span>
-
-              <select
-                value={fileSort}
-                onChange={(event) =>
-                  setFileSort(event.target.value as FileSort)
-                }
-              >
-                <option value="issues">Most issues</option>
-
-                <option value="name">Name</option>
-              </select>
-            </label>
-
-            <div className="project-file-list">
-              {visibleProjectFiles.length === 0 ? (
-                <div className="no-files">No files match this filter.</div>
-              ) : (
-                visibleProjectFiles.map(({ file, originalIndex }) => (
-                  <button
-                    key={`${file.path}-${originalIndex}`}
-                    type="button"
-                    className={
-                      selectedProjectFile === originalIndex
-                        ? "project-file active"
-                        : "project-file"
-                    }
-                    onClick={() => selectProjectFile(originalIndex)}
-                  >
-                    <div>
-                      <strong>{file.name}</strong>
-
-                      <small>{file.path}</small>
-                    </div>
-
-                    {file.report && (
-                      <span
-                        className={
-                          file.report.summary.totalIssues === 0
-                            ? "file-status clean"
-                            : "file-status issues-found"
-                        }
-                      >
-                        {file.report.summary.totalIssues}
-                      </span>
-                    )}
-                  </button>
-                ))
-              )}
-            </div>
-          </aside>
+          <ProjectSidebar
+            projectFiles={projectFiles}
+            visibleProjectFiles={visibleProjectFiles}
+            selectedProjectFile={selectedProjectFile}
+            fileFilter={fileFilter}
+            fileSort={fileSort}
+            onFileFilterChange={setFileFilter}
+            onFileSortChange={setFileSort}
+            onSelectProjectFile={selectProjectFile}
+          />
         )}
 
         <div className="editor-panel">
