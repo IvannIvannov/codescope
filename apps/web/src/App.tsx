@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import "./App.css";
 
@@ -45,6 +45,17 @@ interface ProjectFile {
   report: AnalysisReport | null;
 }
 
+interface ProjectSummary {
+  score: number;
+  totalIssues: number;
+  high: number;
+  medium: number;
+  low: number;
+  files: number;
+  linesOfCode: number;
+  functions: number;
+}
+
 const initialCode = `function test(value: any) {
   console.log(value);
 }`;
@@ -72,6 +83,76 @@ function App() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const projectSummary = useMemo<ProjectSummary | null>(() => {
+    if (
+      mode !== "project" ||
+      projectFiles.length === 0 ||
+      projectFiles.some((file) => !file.report)
+    ) {
+      return null;
+    }
+
+    const reports = projectFiles
+      .map((file) => file.report)
+      .filter(
+        (fileReport): fileReport is AnalysisReport => fileReport !== null,
+      );
+
+    const totalIssues = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.totalIssues,
+      0,
+    );
+
+    const high = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.high,
+      0,
+    );
+
+    const medium = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.medium,
+      0,
+    );
+
+    const low = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.low,
+      0,
+    );
+
+    const linesOfCode = reports.reduce(
+      (total, currentReport) => total + currentReport.metrics.linesOfCode,
+      0,
+    );
+
+    const functions = reports.reduce(
+      (total, currentReport) => total + currentReport.metrics.functions,
+      0,
+    );
+
+    const weightedScore =
+      reports.reduce(
+        (total, currentReport) =>
+          total +
+          currentReport.score * Math.max(currentReport.metrics.linesOfCode, 1),
+        0,
+      ) /
+      reports.reduce(
+        (total, currentReport) =>
+          total + Math.max(currentReport.metrics.linesOfCode, 1),
+        0,
+      );
+
+    return {
+      score: Math.round(weightedScore),
+      totalIssues,
+      high,
+      medium,
+      low,
+      files: projectFiles.length,
+      linesOfCode,
+      functions,
+    };
+  }, [mode, projectFiles]);
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -468,6 +549,44 @@ function App() {
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
 
+      {mode === "project" && projectSummary && (
+        <section className="project-summary">
+          <div className="project-score">
+            <span>Project health</span>
+            <strong>{projectSummary.score}</strong>
+            <span>/ 100</span>
+          </div>
+
+          <div className="project-summary-metrics">
+            <div>
+              <strong>{projectSummary.files}</strong>
+              <span>Files</span>
+            </div>
+
+            <div>
+              <strong>{projectSummary.totalIssues}</strong>
+              <span>Issues</span>
+            </div>
+
+            <div>
+              <strong>{projectSummary.linesOfCode}</strong>
+              <span>Lines</span>
+            </div>
+
+            <div>
+              <strong>{projectSummary.functions}</strong>
+              <span>Functions</span>
+            </div>
+          </div>
+
+          <div className="project-severity">
+            <span>High: {projectSummary.high}</span>
+            <span>Medium: {projectSummary.medium}</span>
+            <span>Low: {projectSummary.low}</span>
+          </div>
+        </section>
+      )}
+
       <section
         className={`workspace ${mode === "project" ? "project-mode" : ""}`}
       >
@@ -602,7 +721,10 @@ function App() {
           ) : (
             <>
               <div className="score">
-                <span>Code health</span>
+                <span>
+                  {mode === "project" ? "Selected file health" : "Code health"}
+                </span>
+
                 <strong>{report.score}</strong>
                 <span>/ 100</span>
               </div>
@@ -626,9 +748,7 @@ function App() {
 
               <div className="severity-summary">
                 <span>High: {report.summary.high}</span>
-
                 <span>Medium: {report.summary.medium}</span>
-
                 <span>Low: {report.summary.low}</span>
               </div>
 

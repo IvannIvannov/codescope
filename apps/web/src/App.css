@@ -442,6 +442,72 @@ button:disabled {
   background: #3a2c16;
 }
 
+.project-summary {
+  margin-bottom: 24px;
+  padding: 24px;
+
+  border: 1px solid #292f39;
+  border-radius: 16px;
+  background: #12161e;
+}
+
+.project-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+
+  padding-bottom: 20px;
+  border-bottom: 1px solid #292f39;
+}
+
+.project-score strong {
+  margin-left: auto;
+  font-size: 44px;
+}
+
+.project-score span {
+  color: #9da7b8;
+}
+
+.project-summary-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.project-summary-metrics div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  padding: 14px;
+
+  border: 1px solid #292f39;
+  border-radius: 10px;
+}
+
+.project-summary-metrics strong {
+  font-size: 22px;
+}
+
+.project-summary-metrics span {
+  color: #9da7b8;
+}
+
+.project-severity {
+  display: flex;
+  gap: 24px;
+  margin-top: 18px;
+  color: #9da7b8;
+}
+
+@media (max-width: 900px) {
+  .project-summary-metrics {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 @media (max-width: 1200px) {
   .workspace.project-mode {
     grid-template-columns: 200px minmax(0, 1fr);
