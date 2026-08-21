@@ -5,8 +5,12 @@ import type { AnalysisRule, CodeIssue } from "../types.js";
 export const noConsoleRule: AnalysisRule = {
   name: "no-console",
 
-  analyze(sourceFile) {
+  analyze(sourceFile, config) {
     const issues: CodeIssue[] = [];
+
+    if (!config.noConsole) {
+      return issues;
+    }
 
     const propertyAccessExpressions = sourceFile.getDescendantsOfKind(
       SyntaxKind.PropertyAccessExpression,

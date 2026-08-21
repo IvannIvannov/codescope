@@ -1,19 +1,31 @@
 import type { SourceFile } from "ts-morph";
 
+export type Severity = "low" | "medium" | "high";
+
 export interface CodeIssue {
   rule: string;
   message: string;
   line: number;
   column?: number;
   snippet?: string;
-  severity: "low" | "medium" | "high";
+  severity: Severity;
   file?: string;
   suggestion?: string;
 }
 
+export interface AnalyzerConfig {
+  noAny: boolean;
+  noConsole: boolean;
+  maxFunctionLength: number;
+  maxParameters: number;
+  maxComplexity: number;
+  maxNestingDepth: number;
+}
+
 export interface AnalysisRule {
   name: string;
-  analyze(sourceFile: SourceFile): CodeIssue[];
+
+  analyze(sourceFile: SourceFile, config: AnalyzerConfig): CodeIssue[];
 }
 
 export interface AnalysisSummary {

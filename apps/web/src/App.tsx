@@ -15,6 +15,15 @@ type FileFilter = "all" | "issues" | "clean";
 type FileSort = "issues" | "name";
 type IssueSeverityFilter = "all" | Severity;
 
+interface AnalyzerConfig {
+  noAny: boolean;
+  noConsole: boolean;
+  maxFunctionLength: number;
+  maxParameters: number;
+  maxComplexity: number;
+  maxNestingDepth: number;
+}
+
 interface CodeIssue {
   rule: string;
   message: string;
@@ -72,6 +81,15 @@ const initialCode = `function test(value: any) {
   console.log(value);
 }`;
 
+const defaultAnalyzerConfig: AnalyzerConfig = {
+  noAny: true,
+  noConsole: true,
+  maxFunctionLength: 50,
+  maxParameters: 4,
+  maxComplexity: 10,
+  maxNestingDepth: 3,
+};
+
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
@@ -105,6 +123,12 @@ function App() {
     useState<IssueSeverityFilter>("all");
 
   const [issueRuleFilter, setIssueRuleFilter] = useState("all");
+
+  const [analyzerConfig, setAnalyzerConfig] = useState<AnalyzerConfig>(
+    defaultAnalyzerConfig,
+  );
+
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -171,11 +195,14 @@ function App() {
 
     return {
       score: Math.round(weightedScore),
+
       totalIssues,
       high,
       medium,
       low,
+
       files: projectFiles.length,
+
       linesOfCode,
       functions,
     };
@@ -283,11 +310,13 @@ function App() {
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
+
     monacoRef.current = monaco;
   };
 
   const clearMarkers = () => {
     const editor = editorRef.current;
+
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -309,8 +338,47 @@ function App() {
     clearMarkers();
   };
 
+  const clearProjectReports = () => {
+    setProjectFiles((currentFiles) =>
+      currentFiles.map((file) => ({
+        ...file,
+        report: null,
+      })),
+    );
+
+    setReport(null);
+    clearMarkers();
+  };
+
+  const handleConfigChange = <K extends keyof AnalyzerConfig>(
+    key: K,
+    value: AnalyzerConfig[K],
+  ) => {
+    setAnalyzerConfig((currentConfig) => ({
+      ...currentConfig,
+      [key]: value,
+    }));
+
+    if (mode === "project") {
+      clearProjectReports();
+    } else {
+      clearAnalysis();
+    }
+  };
+
+  const resetAnalyzerConfig = () => {
+    setAnalyzerConfig(defaultAnalyzerConfig);
+
+    if (mode === "project") {
+      clearProjectReports();
+    } else {
+      clearAnalysis();
+    }
+  };
+
   const updateMarkers = (issues: CodeIssue[]) => {
     const editor = editorRef.current;
+
     const monaco = monacoRef.current;
 
     if (!editor || !monaco) {
@@ -332,18 +400,26 @@ function App() {
             : monaco.MarkerSeverity.Info;
 
       const line = issue.line;
+
       const column = issue.column ?? 1;
 
       return {
         startLineNumber: line,
+
         startColumn: column,
+
         endLineNumber: line,
+
         endColumn: issue.snippet ? column + issue.snippet.length : column + 1,
+
         message: issue.suggestion
           ? `${issue.message}\n\nSuggestion: ${issue.suggestion}`
           : issue.message,
+
         severity,
+
         source: "CodeScope",
+
         code: issue.rule,
       };
     });
@@ -417,6 +493,7 @@ function App() {
       );
 
       event.target.value = "";
+
       return;
     }
 
@@ -424,14 +501,18 @@ function App() {
       const content = await file.text();
 
       setMode("code");
+
       setFileName(file.name);
+
       setLanguage(getLanguageFromFile(file.name));
+
       setCode(content);
 
       clearAnalysis();
 
       editorRef.current?.setPosition({
         lineNumber: 1,
+
         column: 1,
       });
 
@@ -456,6 +537,7 @@ function App() {
       setError("No supported .ts, .tsx, .js or .jsx files were found.");
 
       event.target.value = "";
+
       return;
     }
 
@@ -463,25 +545,35 @@ function App() {
       const files: ProjectFile[] = await Promise.all(
         supportedFiles.map(async (file) => ({
           name: file.name,
+
           path: file.webkitRelativePath || file.name,
+
           code: await file.text(),
+
           language: getLanguageFromFile(file.name),
+
           report: null,
         })),
       );
 
       setMode("project");
+
       setProjectFiles(files);
+
       setSelectedProjectFile(0);
 
       setFileFilter("all");
+
       setFileSort("issues");
 
       setIssueSeverityFilter("all");
+
       setIssueRuleFilter("all");
 
       setFileName(files[0].name);
+
       setLanguage(files[0].language);
+
       setCode(files[0].code);
 
       clearAnalysis();
@@ -502,8 +594,11 @@ function App() {
     setSelectedProjectFile(index);
 
     setFileName(file.name);
+
     setLanguage(file.language);
+
     setCode(file.code);
+
     setReport(file.report);
 
     clearMarkers();
@@ -516,6 +611,7 @@ function App() {
 
     editorRef.current?.setPosition({
       lineNumber: 1,
+
       column: 1,
     });
 
@@ -538,6 +634,7 @@ function App() {
     }
 
     const lineNumber = issue.line;
+
     const column = issue.column ?? 1;
 
     editor.revealLineInCenter(lineNumber);
@@ -550,8 +647,11 @@ function App() {
     if (issue.snippet) {
       editor.setSelection({
         startLineNumber: lineNumber,
+
         startColumn: column,
+
         endLineNumber: lineNumber,
+
         endColumn: column + issue.snippet.length,
       });
     }
@@ -563,9 +663,13 @@ function App() {
     const { issue, file, fileIndex } = projectIssue;
 
     setSelectedProjectFile(fileIndex);
+
     setFileName(file.name);
+
     setLanguage(file.language);
+
     setCode(file.code);
+
     setReport(file.report);
 
     clearMarkers();
@@ -591,6 +695,8 @@ function App() {
 
       body: JSON.stringify({
         code: sourceCode,
+
+        config: analyzerConfig,
       }),
     });
 
@@ -605,6 +711,7 @@ function App() {
 
   const analyzeCode = async () => {
     setLoading(true);
+
     setError("");
 
     try {
@@ -626,6 +733,7 @@ function App() {
     }
 
     setLoading(true);
+
     setError("");
 
     try {
@@ -688,6 +796,14 @@ function App() {
           >
             Project
           </button>
+
+          <button
+            className={settingsOpen ? "active" : ""}
+            type="button"
+            onClick={() => setSettingsOpen((current) => !current)}
+          >
+            Settings
+          </button>
         </div>
       </header>
 
@@ -707,9 +823,136 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
+
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
+
+      {settingsOpen && (
+        <section className="settings-panel">
+          <div className="settings-header">
+            <div>
+              <h2>Analyzer settings</h2>
+
+              <p>Customize the rules and thresholds used during analysis.</p>
+            </div>
+
+            <button
+              className="reset-settings-button"
+              type="button"
+              onClick={resetAnalyzerConfig}
+            >
+              Reset defaults
+            </button>
+          </div>
+
+          <div className="settings-grid">
+            <label className="setting-toggle">
+              <input
+                type="checkbox"
+                checked={analyzerConfig.noAny}
+                onChange={(event) =>
+                  handleConfigChange("noAny", event.target.checked)
+                }
+              />
+
+              <div>
+                <strong>No any</strong>
+
+                <span>Flag usage of the TypeScript any type.</span>
+              </div>
+            </label>
+
+            <label className="setting-toggle">
+              <input
+                type="checkbox"
+                checked={analyzerConfig.noConsole}
+                onChange={(event) =>
+                  handleConfigChange("noConsole", event.target.checked)
+                }
+              />
+
+              <div>
+                <strong>No console</strong>
+
+                <span>Flag console statements in production code.</span>
+              </div>
+            </label>
+
+            <label className="setting-number">
+              <span>Max function length</span>
+
+              <input
+                type="number"
+                min="1"
+                value={analyzerConfig.maxFunctionLength}
+                onChange={(event) =>
+                  handleConfigChange(
+                    "maxFunctionLength",
+                    Math.max(1, Number(event.target.value) || 1),
+                  )
+                }
+              />
+
+              <small>Current default: 50 lines</small>
+            </label>
+
+            <label className="setting-number">
+              <span>Max parameters</span>
+
+              <input
+                type="number"
+                min="1"
+                value={analyzerConfig.maxParameters}
+                onChange={(event) =>
+                  handleConfigChange(
+                    "maxParameters",
+                    Math.max(1, Number(event.target.value) || 1),
+                  )
+                }
+              />
+
+              <small>Current default: 4 parameters</small>
+            </label>
+
+            <label className="setting-number">
+              <span>Max complexity</span>
+
+              <input
+                type="number"
+                min="1"
+                value={analyzerConfig.maxComplexity}
+                onChange={(event) =>
+                  handleConfigChange(
+                    "maxComplexity",
+                    Math.max(1, Number(event.target.value) || 1),
+                  )
+                }
+              />
+
+              <small>Current default: 10</small>
+            </label>
+
+            <label className="setting-number">
+              <span>Max nesting depth</span>
+
+              <input
+                type="number"
+                min="1"
+                value={analyzerConfig.maxNestingDepth}
+                onChange={(event) =>
+                  handleConfigChange(
+                    "maxNestingDepth",
+                    Math.max(1, Number(event.target.value) || 1),
+                  )
+                }
+              />
+
+              <small>Current default: 3 levels</small>
+            </label>
+          </div>
+        </section>
+      )}
 
       {mode === "project" && projectSummary && (
         <section className="project-summary">
@@ -724,21 +967,25 @@ function App() {
           <div className="project-summary-metrics">
             <div>
               <strong>{projectSummary.files}</strong>
+
               <span>Files</span>
             </div>
 
             <div>
               <strong>{projectSummary.totalIssues}</strong>
+
               <span>Issues</span>
             </div>
 
             <div>
               <strong>{projectSummary.linesOfCode}</strong>
+
               <span>Lines</span>
             </div>
 
             <div>
               <strong>{projectSummary.functions}</strong>
+
               <span>Functions</span>
             </div>
           </div>
@@ -985,15 +1232,23 @@ function App() {
                 minimap: {
                   enabled: false,
                 },
+
                 fontSize: 15,
+
                 lineHeight: 24,
+
                 fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
+
                 scrollBeyondLastLine: false,
+
                 automaticLayout: true,
+
                 padding: {
                   top: 16,
+
                   bottom: 16,
                 },
+
                 wordWrap: "on",
               }}
             />

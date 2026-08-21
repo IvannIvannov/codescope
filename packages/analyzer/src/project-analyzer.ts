@@ -1,9 +1,12 @@
 import { Project, SyntaxKind } from "ts-morph";
+
 import path from "node:path";
 
+import { defaultConfig } from "./config.js";
 import { rules } from "./rules/index.js";
 
 import type {
+  AnalyzerConfig,
   CodeIssue,
   AnalysisSummary,
   ProjectAnalysisReport,
@@ -41,16 +44,34 @@ function createSummary(issues: CodeIssue[]): AnalysisSummary {
   };
 }
 
-export function analyzeProject(projectPath: string): ProjectAnalysisReport {
+function createConfig(config?: Partial<AnalyzerConfig>): AnalyzerConfig {
+  return {
+    ...defaultConfig,
+    ...config,
+  };
+}
+
+export function analyzeProject(
+  projectPath: string,
+  config?: Partial<AnalyzerConfig>,
+): ProjectAnalysisReport {
+  const finalConfig = createConfig(config);
+
   const project = new Project();
 
   project.addSourceFilesAtPaths([
     path.join(projectPath, "**/*.ts"),
+
     path.join(projectPath, "**/*.tsx"),
-    path.join(projectPath, "**/*.jcd s"),
+
+    path.join(projectPath, "**/*.js"),
+
     path.join(projectPath, "**/*.jsx"),
+
     `!${path.join(projectPath, "**/node_modules/**")}`,
+
     `!${path.join(projectPath, "**/dist/**")}`,
+
     `!${path.join(projectPath, "**/test.ts")}`,
   ]);
 
@@ -69,7 +90,9 @@ export function analyzeProject(projectPath: string): ProjectAnalysisReport {
       sourceFile.getDescendantsOfKind(SyntaxKind.ArrowFunction).length +
       sourceFile.getDescendantsOfKind(SyntaxKind.MethodDeclaration).length;
 
-    const fileIssues = rules.flatMap((rule) => rule.analyze(sourceFile));
+    const fileIssues = rules.flatMap((rule) =>
+      rule.analyze(sourceFile, finalConfig),
+    );
 
     for (const issue of fileIssues) {
       issues.push({
@@ -86,7 +109,9 @@ export function analyzeProject(projectPath: string): ProjectAnalysisReport {
 
     metrics: {
       files: sourceFiles.length,
+
       linesOfCode,
+
       functions,
     },
 

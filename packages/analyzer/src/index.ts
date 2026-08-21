@@ -1,7 +1,10 @@
 import { Project, SyntaxKind } from "ts-morph";
+
+import { defaultConfig } from "./config.js";
 import { rules } from "./rules/index.js";
 
 import type {
+  AnalyzerConfig,
   CodeIssue,
   AnalysisReport,
   AnalysisSummary,
@@ -31,23 +34,39 @@ function calculateScore(issues: CodeIssue[]): number {
 function createSummary(issues: CodeIssue[]): AnalysisSummary {
   return {
     totalIssues: issues.length,
+
     high: issues.filter((issue) => issue.severity === "high").length,
+
     medium: issues.filter((issue) => issue.severity === "medium").length,
+
     low: issues.filter((issue) => issue.severity === "low").length,
   };
 }
 
-export function analyzeCode(code: string): AnalysisReport {
+function createConfig(config?: Partial<AnalyzerConfig>): AnalyzerConfig {
+  return {
+    ...defaultConfig,
+    ...config,
+  };
+}
+
+export function analyzeCode(
+  code: string,
+  config?: Partial<AnalyzerConfig>,
+): AnalysisReport {
+  const finalConfig = createConfig(config);
+
   const project = new Project({
     useInMemoryFileSystem: true,
   });
 
   const sourceFile = project.createSourceFile("file.ts", code);
 
-  const issues = rules.flatMap((rule) => rule.analyze(sourceFile));
+  const issues = rules.flatMap((rule) => rule.analyze(sourceFile, finalConfig));
 
   const metrics: AnalysisMetrics = {
     linesOfCode: sourceFile.getEndLineNumber(),
+
     functions:
       sourceFile.getDescendantsOfKind(SyntaxKind.FunctionDeclaration).length +
       sourceFile.getDescendantsOfKind(SyntaxKind.ArrowFunction).length +
@@ -64,7 +83,11 @@ export function analyzeCode(code: string): AnalysisReport {
 
 export { analyzeProject } from "./project-analyzer.js";
 
+export { defaultConfig } from "./config.js";
+
 export type {
+  Severity,
+  AnalyzerConfig,
   CodeIssue,
   AnalysisRule,
   AnalysisReport,

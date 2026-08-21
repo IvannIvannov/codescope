@@ -1,7 +1,7 @@
 import Fastify from "fastify";
-import { analyzeCode } from "@codescope/analyzer";
-
 import cors from "@fastify/cors";
+
+import { analyzeCode, type AnalyzerConfig } from "@codescope/analyzer";
 
 const app = Fastify({
   logger: true,
@@ -13,6 +13,7 @@ await app.register(cors, {
 
 interface AnalyzeCodeBody {
   code: string;
+  config?: Partial<AnalyzerConfig>;
 }
 
 app.get("/health", async () => {
@@ -22,7 +23,7 @@ app.get("/health", async () => {
 });
 
 app.post<{ Body: AnalyzeCodeBody }>("/analyze/code", async (request, reply) => {
-  const { code } = request.body;
+  const { code, config } = request.body;
 
   if (!code || !code.trim()) {
     return reply.status(400).send({
@@ -30,7 +31,7 @@ app.post<{ Body: AnalyzeCodeBody }>("/analyze/code", async (request, reply) => {
     });
   }
 
-  const report = analyzeCode(code);
+  const report = analyzeCode(code, config);
 
   return {
     report,

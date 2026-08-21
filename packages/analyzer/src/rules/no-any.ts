@@ -1,11 +1,16 @@
 import { SyntaxKind } from "ts-morph";
+
 import type { AnalysisRule, CodeIssue } from "../types.js";
 
 export const noAnyRule: AnalysisRule = {
   name: "no-any",
 
-  analyze(sourceFile) {
+  analyze(sourceFile, config) {
     const issues: CodeIssue[] = [];
+
+    if (!config.noAny) {
+      return issues;
+    }
 
     const anyKeywords = sourceFile.getDescendantsOfKind(SyntaxKind.AnyKeyword);
 

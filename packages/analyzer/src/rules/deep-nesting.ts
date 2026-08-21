@@ -1,7 +1,6 @@
 import { Node, SyntaxKind } from "ts-morph";
-import type { AnalysisRule, CodeIssue } from "../types.js";
 
-const MAX_NESTING_DEPTH = 3;
+import type { AnalysisRule, CodeIssue } from "../types.js";
 
 const NESTING_KINDS = new Set([
   SyntaxKind.IfStatement,
@@ -20,6 +19,7 @@ function isNestingNode(node: Node): boolean {
 
 function getNestingDepth(node: Node): number {
   let depth = 0;
+
   let parent = node.getParent();
 
   while (parent) {
@@ -36,7 +36,7 @@ function getNestingDepth(node: Node): number {
 export const deepNestingRule: AnalysisRule = {
   name: "deep-nesting",
 
-  analyze(sourceFile) {
+  analyze(sourceFile, config) {
     const issues: CodeIssue[] = [];
 
     sourceFile.forEachDescendant((node) => {
@@ -46,13 +46,19 @@ export const deepNestingRule: AnalysisRule = {
 
       const depth = getNestingDepth(node);
 
-      if (depth > MAX_NESTING_DEPTH) {
+      if (depth > config.maxNestingDepth) {
         issues.push({
           rule: this.name,
-          message: `Code is nested ${depth} levels deep. Maximum recommended nesting depth is ${MAX_NESTING_DEPTH}.`,
+
+          message:
+            `Code is nested ${depth} levels deep. ` +
+            `Maximum recommended nesting depth is ${config.maxNestingDepth}.`,
+
           suggestion:
             "Reduce nesting by using early returns, guard clauses, or extracting nested logic into separate functions.",
+
           line: node.getStartLineNumber(),
+
           severity: "medium",
         });
       }

@@ -74,6 +74,23 @@ function checkUser(user: unknown) {
 }
 `;
 
+const configurableCode = `
+function test(value: any) {
+  console.log(value);
+}
+`;
+
+console.log("\nDefault config:");
+console.dir(analyzeCode(configurableCode), { depth: null });
+
+console.log("\nCustom config - noConsole disabled:");
+console.dir(
+  analyzeCode(configurableCode, {
+    noConsole: false,
+  }),
+  { depth: null },
+);
+
 console.log("\nProject analysis:");
 
 const projectReport = analyzeProject("packages/analyzer/src");
