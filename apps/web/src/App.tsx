@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import Editor, { type OnMount } from "@monaco-editor/react";
+import { type OnMount } from "@monaco-editor/react";
 
+import EditorPanel from "./components/EditorPanel";
 import HistoryPanel from "./components/HistoryPanel";
 import ProjectIssuesPanel from "./components/ProjectIssuesPanel";
 import ProjectSidebar from "./components/ProjectSidebar";
@@ -446,7 +447,9 @@ function App() {
 
   const clearAnalysis = () => {
     setReport(null);
+
     setError("");
+
     clearMarkers();
   };
 
@@ -454,12 +457,15 @@ function App() {
     setProjectFiles((currentFiles) =>
       currentFiles.map((file) => ({
         ...file,
+
         report: null,
       })),
     );
 
     setReport(null);
+
     setError("");
+
     clearMarkers();
   };
 
@@ -1535,6 +1541,7 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
+
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
@@ -1614,90 +1621,21 @@ function App() {
           />
         )}
 
-        <div className="editor-panel">
-          <div className="panel-header">
-            <div>
-              <h2>Code</h2>
-
-              <span className="file-name">{fileName}</span>
-            </div>
-
-            <div className="editor-actions">
-              <span>{language}</span>
-
-              {mode === "code" && (
-                <button
-                  className="upload-button"
-                  type="button"
-                  onClick={openFilePicker}
-                >
-                  Open file
-                </button>
-              )}
-
-              {mode === "project" && (
-                <button
-                  className="upload-button"
-                  type="button"
-                  onClick={openFolderPicker}
-                >
-                  Open project
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="code-editor">
-            <Editor
-              height="500px"
-              language={language}
-              theme="vs-dark"
-              value={code}
-              onMount={handleEditorMount}
-              onChange={handleCodeChange}
-              options={{
-                minimap: {
-                  enabled: false,
-                },
-
-                fontSize: 15,
-
-                lineHeight: 24,
-
-                fontFamily: "'Cascadia Code', 'Fira Code', Consolas, monospace",
-
-                scrollBeyondLastLine: false,
-
-                automaticLayout: true,
-
-                padding: {
-                  top: 16,
-
-                  bottom: 16,
-                },
-
-                wordWrap: "on",
-              }}
-            />
-          </div>
-
-          <button
-            className="analyze-button"
-            onClick={mode === "project" ? analyzeProject : analyzeCode}
-            disabled={
-              loading ||
-              (mode === "code" ? !code.trim() : projectFiles.length === 0)
-            }
-          >
-            {loading
-              ? "Analyzing..."
-              : mode === "project"
-                ? `Analyze project (${projectFiles.length} files)`
-                : "Analyze code"}
-          </button>
-
-          {error && <p className="error">{error}</p>}
-        </div>
+        <EditorPanel
+          mode={mode}
+          code={code}
+          fileName={fileName}
+          language={language}
+          loading={loading}
+          error={error}
+          projectFilesCount={projectFiles.length}
+          onEditorMount={handleEditorMount}
+          onCodeChange={handleCodeChange}
+          onOpenFile={openFilePicker}
+          onOpenProject={openFolderPicker}
+          onAnalyzeCode={analyzeCode}
+          onAnalyzeProject={analyzeProject}
+        />
 
         <ResultsPanel
           mode={mode}
