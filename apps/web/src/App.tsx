@@ -10,6 +10,8 @@ type Language =
   | "typescriptreact"
   | "javascriptreact";
 
+type AnalysisMode = "code" | "project";
+
 interface CodeIssue {
   rule: string;
   message: string;
@@ -35,6 +37,14 @@ interface AnalysisReport {
   issues: CodeIssue[];
 }
 
+interface ProjectFile {
+  name: string;
+  path: string;
+  code: string;
+  language: Language;
+  report: AnalysisReport | null;
+}
+
 const initialCode = `function test(value: any) {
   console.log(value);
 }`;
@@ -42,15 +52,26 @@ const initialCode = `function test(value: any) {
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
   const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [mode, setMode] = useState<AnalysisMode>("code");
 
   const [code, setCode] = useState(initialCode);
-  const [report, setReport] = useState<AnalysisReport | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
   const [fileName, setFileName] = useState("example.ts");
   const [language, setLanguage] = useState<Language>("typescript");
+
+  const [report, setReport] = useState<AnalysisReport | null>(null);
+
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+
+  const [selectedProjectFile, setSelectedProjectFile] = useState<number | null>(
+    null,
+  );
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
@@ -122,25 +143,55 @@ function App() {
     monaco.editor.setModelMarkers(model, "codescope", markers);
   };
 
-  const handleCodeChange = (value: string | undefined) => {
-    setCode(value ?? "");
-    clearAnalysis();
-  };
-
   const getLanguageFromFile = (name: string): Language => {
-    if (name.endsWith(".tsx")) {
+    const lowerName = name.toLowerCase();
+
+    if (lowerName.endsWith(".tsx")) {
       return "typescriptreact";
     }
 
-    if (name.endsWith(".jsx")) {
+    if (lowerName.endsWith(".jsx")) {
       return "javascriptreact";
     }
 
-    if (name.endsWith(".js")) {
+    if (lowerName.endsWith(".js")) {
       return "javascript";
     }
 
     return "typescript";
+  };
+
+  const isSupportedFile = (name: string) => {
+    const lowerName = name.toLowerCase();
+
+    return (
+      lowerName.endsWith(".ts") ||
+      lowerName.endsWith(".tsx") ||
+      lowerName.endsWith(".js") ||
+      lowerName.endsWith(".jsx")
+    );
+  };
+
+  const handleCodeChange = (value: string | undefined) => {
+    const newCode = value ?? "";
+
+    setCode(newCode);
+
+    if (mode === "project" && selectedProjectFile !== null) {
+      setProjectFiles((currentFiles) =>
+        currentFiles.map((file, index) =>
+          index === selectedProjectFile
+            ? {
+                ...file,
+                code: newCode,
+                report: null,
+              }
+            : file,
+        ),
+      );
+    }
+
+    clearAnalysis();
   };
 
   const handleFileUpload = async (
@@ -152,13 +203,7 @@ function App() {
       return;
     }
 
-    const allowedExtensions = [".ts", ".tsx", ".js", ".jsx"];
-
-    const extensionIsAllowed = allowedExtensions.some((extension) =>
-      file.name.toLowerCase().endsWith(extension),
-    );
-
-    if (!extensionIsAllowed) {
+    if (!isSupportedFile(file.name)) {
       setError(
         "Unsupported file type. Please select a .ts, .tsx, .js or .jsx file.",
       );
@@ -170,6 +215,7 @@ function App() {
     try {
       const content = await file.text();
 
+      setMode("code");
       setFileName(file.name);
       setLanguage(getLanguageFromFile(file.name));
       setCode(content);
@@ -189,8 +235,84 @@ function App() {
     event.target.value = "";
   };
 
+  const handleFolderUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+
+    const supportedFiles = selectedFiles.filter((file) =>
+      isSupportedFile(file.name),
+    );
+
+    if (supportedFiles.length === 0) {
+      setError("No supported .ts, .tsx, .js or .jsx files were found.");
+
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const files: ProjectFile[] = await Promise.all(
+        supportedFiles.map(async (file) => ({
+          name: file.name,
+          path: file.webkitRelativePath || file.name,
+          code: await file.text(),
+          language: getLanguageFromFile(file.name),
+          report: null,
+        })),
+      );
+
+      setMode("project");
+      setProjectFiles(files);
+      setSelectedProjectFile(0);
+
+      setFileName(files[0].name);
+      setLanguage(files[0].language);
+      setCode(files[0].code);
+
+      clearAnalysis();
+    } catch {
+      setError("Could not read the selected project.");
+    }
+
+    event.target.value = "";
+  };
+
+  const selectProjectFile = (index: number) => {
+    const file = projectFiles[index];
+
+    if (!file) {
+      return;
+    }
+
+    setSelectedProjectFile(index);
+    setFileName(file.name);
+    setLanguage(file.language);
+    setCode(file.code);
+    setReport(file.report);
+
+    clearMarkers();
+
+    if (file.report) {
+      setTimeout(() => {
+        updateMarkers(file.report?.issues ?? []);
+      }, 0);
+    }
+
+    editorRef.current?.setPosition({
+      lineNumber: 1,
+      column: 1,
+    });
+
+    editorRef.current?.revealLine(1);
+  };
+
   const openFilePicker = () => {
     fileInputRef.current?.click();
+  };
+
+  const openFolderPicker = () => {
+    folderInputRef.current?.click();
   };
 
   const goToIssue = (issue: CodeIssue) => {
@@ -222,34 +344,81 @@ function App() {
     editor.focus();
   };
 
-  const analyze = async () => {
+  const requestAnalysis = async (
+    sourceCode: string,
+  ): Promise<AnalysisReport> => {
+    const response = await fetch("http://localhost:3000/analyze/code", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        code: sourceCode,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Analysis failed.");
+    }
+
+    const data = await response.json();
+
+    return data.report;
+  };
+
+  const analyzeCode = async () => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch("http://localhost:3000/analyze/code", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          code,
-        }),
-      });
+      const newReport = await requestAnalysis(code);
 
-      if (!response.ok) {
-        throw new Error("Analysis failed.");
-      }
-
-      const data = await response.json();
-
-      setReport(data.report);
-      updateMarkers(data.report.issues);
+      setReport(newReport);
+      updateMarkers(newReport.issues);
     } catch {
       setError("Could not connect to the CodeScope API.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const analyzeProject = async () => {
+    if (projectFiles.length === 0) {
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const analyzedFiles = await Promise.all(
+        projectFiles.map(async (file) => ({
+          ...file,
+          report: await requestAnalysis(file.code),
+        })),
+      );
+
+      setProjectFiles(analyzedFiles);
+
+      if (selectedProjectFile !== null) {
+        const selectedFile = analyzedFiles[selectedProjectFile];
+
+        if (selectedFile?.report) {
+          setReport(selectedFile.report);
+          updateMarkers(selectedFile.report.issues);
+        }
+      }
+    } catch {
+      setError("Could not analyze the selected project.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const switchToCodeMode = () => {
+    setMode("code");
+    setSelectedProjectFile(null);
+    clearAnalysis();
   };
 
   return (
@@ -259,9 +428,90 @@ function App() {
           <h1>CodeScope</h1>
           <p>Analyze your code quality in seconds.</p>
         </div>
+
+        <div className="mode-switcher">
+          <button
+            className={mode === "code" ? "active" : ""}
+            type="button"
+            onClick={switchToCodeMode}
+          >
+            Code
+          </button>
+
+          <button
+            className={mode === "project" ? "active" : ""}
+            type="button"
+            onClick={openFolderPicker}
+          >
+            Project
+          </button>
+        </div>
       </header>
 
-      <section className="workspace">
+      <input
+        ref={fileInputRef}
+        className="file-input"
+        type="file"
+        accept=".ts,.tsx,.js,.jsx"
+        onChange={handleFileUpload}
+      />
+
+      <input
+        ref={folderInputRef}
+        className="file-input"
+        type="file"
+        multiple
+        onChange={handleFolderUpload}
+        {...({
+          webkitdirectory: "",
+          directory: "",
+        } as React.InputHTMLAttributes<HTMLInputElement>)}
+      />
+
+      <section
+        className={`workspace ${mode === "project" ? "project-mode" : ""}`}
+      >
+        {mode === "project" && (
+          <aside className="project-sidebar">
+            <div className="project-sidebar-header">
+              <h3>Project files</h3>
+              <span>{projectFiles.length}</span>
+            </div>
+
+            <div className="project-file-list">
+              {projectFiles.map((file, index) => (
+                <button
+                  key={`${file.path}-${index}`}
+                  type="button"
+                  className={
+                    selectedProjectFile === index
+                      ? "project-file active"
+                      : "project-file"
+                  }
+                  onClick={() => selectProjectFile(index)}
+                >
+                  <div>
+                    <strong>{file.name}</strong>
+                    <small>{file.path}</small>
+                  </div>
+
+                  {file.report && (
+                    <span
+                      className={
+                        file.report.summary.totalIssues === 0
+                          ? "file-status clean"
+                          : "file-status issues-found"
+                      }
+                    >
+                      {file.report.summary.totalIssues}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </aside>
+        )}
+
         <div className="editor-panel">
           <div className="panel-header">
             <div>
@@ -272,21 +522,25 @@ function App() {
             <div className="editor-actions">
               <span>{language}</span>
 
-              <input
-                ref={fileInputRef}
-                className="file-input"
-                type="file"
-                accept=".ts,.tsx,.js,.jsx"
-                onChange={handleFileUpload}
-              />
+              {mode === "code" && (
+                <button
+                  className="upload-button"
+                  type="button"
+                  onClick={openFilePicker}
+                >
+                  Open file
+                </button>
+              )}
 
-              <button
-                className="upload-button"
-                type="button"
-                onClick={openFilePicker}
-              >
-                Open file
-              </button>
+              {mode === "project" && (
+                <button
+                  className="upload-button"
+                  type="button"
+                  onClick={openFolderPicker}
+                >
+                  Open project
+                </button>
+              )}
             </div>
           </div>
 
@@ -318,10 +572,17 @@ function App() {
 
           <button
             className="analyze-button"
-            onClick={analyze}
-            disabled={loading || !code.trim()}
+            onClick={mode === "project" ? analyzeProject : analyzeCode}
+            disabled={
+              loading ||
+              (mode === "code" ? !code.trim() : projectFiles.length === 0)
+            }
           >
-            {loading ? "Analyzing..." : "Analyze code"}
+            {loading
+              ? "Analyzing..."
+              : mode === "project"
+                ? `Analyze project (${projectFiles.length} files)`
+                : "Analyze code"}
           </button>
 
           {error && <p className="error">{error}</p>}
@@ -333,17 +594,16 @@ function App() {
               <h2>Ready to analyze</h2>
 
               <p>
-                Write, paste or open a file and run CodeScope to see the
-                analysis.
+                {mode === "project"
+                  ? "Analyze the project to see issues for each file."
+                  : "Write, paste or open a file and run CodeScope to see the analysis."}
               </p>
             </div>
           ) : (
             <>
               <div className="score">
                 <span>Code health</span>
-
                 <strong>{report.score}</strong>
-
                 <span>/ 100</span>
               </div>
 

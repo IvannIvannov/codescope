@@ -318,6 +318,140 @@ button:disabled {
   width: 100%;
 }
 
+.mode-switcher {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.mode-switcher button {
+  width: auto;
+  margin: 0;
+  padding: 9px 18px;
+  border: 1px solid #2a303b;
+  border-radius: 8px;
+  background: #12161e;
+  color: #9da7b8;
+  cursor: pointer;
+}
+
+.mode-switcher button.active {
+  background: #f5f7fb;
+  color: #0b0e13;
+}
+
+.workspace.project-mode {
+  grid-template-columns: 240px minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.project-sidebar {
+  border: 1px solid #292f39;
+  border-radius: 16px;
+  background: #12161e;
+  padding: 16px;
+  min-width: 0;
+}
+
+.project-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.project-sidebar-header h3 {
+  margin: 0;
+}
+
+.project-sidebar-header span {
+  opacity: 0.6;
+}
+
+.project-file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 650px;
+  overflow-y: auto;
+}
+
+.project-file {
+  width: 100%;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-file:hover {
+  background: #181d26;
+}
+
+.project-file.active {
+  border-color: #3a4351;
+  background: #1a202a;
+}
+
+.project-file div {
+  min-width: 0;
+}
+
+.project-file strong,
+.project-file small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-file small {
+  margin-top: 4px;
+  opacity: 0.45;
+  font-size: 11px;
+}
+
+.file-status {
+  flex-shrink: 0;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.file-status.clean {
+  background: #193423;
+}
+
+.file-status.issues-found {
+  background: #3a2c16;
+}
+
+@media (max-width: 1200px) {
+  .workspace.project-mode {
+    grid-template-columns: 200px minmax(0, 1fr);
+  }
+
+  .workspace.project-mode .results-panel {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;
