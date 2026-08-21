@@ -79,7 +79,25 @@ interface ProjectIssue {
   fileIndex: number;
 }
 
+interface AnalysisHistoryEntry {
+  id: string;
+  createdAt: string;
+  mode: AnalysisMode;
+  name: string;
+  score: number;
+  totalIssues: number;
+  high: number;
+  medium: number;
+  low: number;
+  preset: ActivePreset;
+  files?: number;
+  linesOfCode: number;
+  functions: number;
+}
+
 const STORAGE_KEY = "codescope-analyzer-config";
+const HISTORY_STORAGE_KEY = "codescope-analysis-history";
+const MAX_HISTORY_ITEMS = 10;
 
 const initialCode = `function test(value: any) {
   console.log(value);
@@ -172,13 +190,44 @@ function App() {
     }
   });
 
+  const [analysisHistory, setAnalysisHistory] = useState<
+    AnalysisHistoryEntry[]
+  >(() => {
+    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
+
+    if (!savedHistory) {
+      return [];
+    }
+
+    try {
+      const parsedHistory = JSON.parse(savedHistory);
+
+      if (!Array.isArray(parsedHistory)) {
+        return [];
+      }
+
+      return parsedHistory.slice(
+        0,
+        MAX_HISTORY_ITEMS,
+      ) as AnalysisHistoryEntry[];
+    } catch {
+      return [];
+    }
+  });
+
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(analyzerConfig));
   }, [analyzerConfig]);
+
+  useEffect(() => {
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(analysisHistory));
+  }, [analysisHistory]);
 
   const activePreset = useMemo<ActivePreset>(() => {
     const entries = Object.entries(analyzerPresets) as [
@@ -423,6 +472,24 @@ function App() {
     }
   };
 
+  const addHistoryEntry = (
+    entry: Omit<AnalysisHistoryEntry, "id" | "createdAt">,
+  ) => {
+    const historyEntry: AnalysisHistoryEntry = {
+      ...entry,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      createdAt: new Date().toISOString(),
+    };
+
+    setAnalysisHistory((currentHistory) =>
+      [historyEntry, ...currentHistory].slice(0, MAX_HISTORY_ITEMS),
+    );
+  };
+
+  const clearHistory = () => {
+    setAnalysisHistory([]);
+  };
+
   const handleConfigChange = <K extends keyof AnalyzerConfig>(
     key: K,
     value: AnalyzerConfig[K],
@@ -466,9 +533,7 @@ function App() {
     link.download = "codescope-config.json";
 
     document.body.appendChild(link);
-
     link.click();
-
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
@@ -859,6 +924,93 @@ function App() {
     return data.report;
   };
 
+  const getProjectName = (files: ProjectFile[]) => {
+    const firstPath = files[0]?.path;
+
+    if (!firstPath) {
+      return "Project";
+    }
+
+    const normalizedPath = firstPath.replace(/\\/g, "/");
+
+    const parts = normalizedPath.split("/");
+
+    if (parts.length > 1) {
+      return parts[0];
+    }
+
+    return "Project";
+  };
+
+  const createProjectSummary = (files: ProjectFile[]): ProjectSummary => {
+    const reports = files
+      .map((file) => file.report)
+      .filter(
+        (fileReport): fileReport is AnalysisReport => fileReport !== null,
+      );
+
+    const totalIssues = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.totalIssues,
+      0,
+    );
+
+    const high = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.high,
+      0,
+    );
+
+    const medium = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.medium,
+      0,
+    );
+
+    const low = reports.reduce(
+      (total, currentReport) => total + currentReport.summary.low,
+      0,
+    );
+
+    const linesOfCode = reports.reduce(
+      (total, currentReport) => total + currentReport.metrics.linesOfCode,
+      0,
+    );
+
+    const functions = reports.reduce(
+      (total, currentReport) => total + currentReport.metrics.functions,
+      0,
+    );
+
+    const totalWeight = reports.reduce(
+      (total, currentReport) =>
+        total + Math.max(currentReport.metrics.linesOfCode, 1),
+      0,
+    );
+
+    const weightedScore =
+      totalWeight === 0
+        ? 100
+        : reports.reduce(
+            (total, currentReport) =>
+              total +
+              currentReport.score *
+                Math.max(currentReport.metrics.linesOfCode, 1),
+            0,
+          ) / totalWeight;
+
+    return {
+      score: Math.round(weightedScore),
+
+      totalIssues,
+      high,
+      medium,
+      low,
+
+      files: files.length,
+
+      linesOfCode,
+      functions,
+    };
+  };
+
   const analyzeCode = async () => {
     setLoading(true);
     setError("");
@@ -869,6 +1021,19 @@ function App() {
       setReport(newReport);
 
       updateMarkers(newReport.issues);
+
+      addHistoryEntry({
+        mode: "code",
+        name: fileName,
+        score: newReport.score,
+        totalIssues: newReport.summary.totalIssues,
+        high: newReport.summary.high,
+        medium: newReport.summary.medium,
+        low: newReport.summary.low,
+        preset: activePreset,
+        linesOfCode: newReport.metrics.linesOfCode,
+        functions: newReport.metrics.functions,
+      });
     } catch {
       setError("Could not connect to the CodeScope API.");
     } finally {
@@ -894,6 +1059,32 @@ function App() {
       );
 
       setProjectFiles(analyzedFiles);
+
+      const finalProjectSummary = createProjectSummary(analyzedFiles);
+
+      addHistoryEntry({
+        mode: "project",
+
+        name: getProjectName(analyzedFiles),
+
+        score: finalProjectSummary.score,
+
+        totalIssues: finalProjectSummary.totalIssues,
+
+        high: finalProjectSummary.high,
+
+        medium: finalProjectSummary.medium,
+
+        low: finalProjectSummary.low,
+
+        preset: activePreset,
+
+        files: finalProjectSummary.files,
+
+        linesOfCode: finalProjectSummary.linesOfCode,
+
+        functions: finalProjectSummary.functions,
+      });
 
       if (selectedProjectFile !== null) {
         const selectedFile = analyzedFiles[selectedProjectFile];
@@ -921,6 +1112,16 @@ function App() {
     return preset.charAt(0).toUpperCase() + preset.slice(1);
   };
 
+  const formatHistoryDate = (value: string) => {
+    const date = new Date(value);
+
+    return date.toLocaleString(undefined, {
+      dateStyle: "medium",
+
+      timeStyle: "short",
+    });
+  };
+
   return (
     <main className="app">
       <header className="header">
@@ -945,6 +1146,14 @@ function App() {
             onClick={openFolderPicker}
           >
             Project
+          </button>
+
+          <button
+            className={historyOpen ? "active" : ""}
+            type="button"
+            onClick={() => setHistoryOpen((current) => !current)}
+          >
+            History
           </button>
 
           <button
@@ -984,6 +1193,89 @@ function App() {
         accept=".json,application/json"
         onChange={handleConfigImport}
       />
+
+      {historyOpen && (
+        <section className="history-panel">
+          <div className="history-header">
+            <div>
+              <h2>Analysis history</h2>
+
+              <p>Your latest successful CodeScope analyses.</p>
+            </div>
+
+            {analysisHistory.length > 0 && (
+              <button
+                className="clear-history-button"
+                type="button"
+                onClick={clearHistory}
+              >
+                Clear history
+              </button>
+            )}
+          </div>
+
+          {analysisHistory.length === 0 ? (
+            <div className="history-empty">
+              <strong>No analyses yet</strong>
+
+              <span>
+                Run a code or project analysis and it will appear here.
+              </span>
+            </div>
+          ) : (
+            <div className="history-list">
+              {analysisHistory.map((historyItem) => (
+                <article className="history-item" key={historyItem.id}>
+                  <div className="history-item-top">
+                    <div className="history-item-title">
+                      <span className={`history-mode ${historyItem.mode}`}>
+                        {historyItem.mode === "project" ? "Project" : "Code"}
+                      </span>
+
+                      <strong>{historyItem.name}</strong>
+                    </div>
+
+                    <div className="history-score">
+                      <strong>{historyItem.score}</strong>
+
+                      <span>/100</span>
+                    </div>
+                  </div>
+
+                  <div className="history-meta">
+                    <span>{historyItem.totalIssues} issues</span>
+
+                    <span>High: {historyItem.high}</span>
+
+                    <span>Medium: {historyItem.medium}</span>
+
+                    <span>Low: {historyItem.low}</span>
+
+                    {historyItem.files !== undefined && (
+                      <span>{historyItem.files} files</span>
+                    )}
+
+                    <span>{historyItem.linesOfCode} lines</span>
+
+                    <span>{historyItem.functions} functions</span>
+                  </div>
+
+                  <div className="history-item-footer">
+                    <span>
+                      Preset:{" "}
+                      <strong>{formatPresetName(historyItem.preset)}</strong>
+                    </span>
+
+                    <time dateTime={historyItem.createdAt}>
+                      {formatHistoryDate(historyItem.createdAt)}
+                    </time>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {settingsOpen && (
         <section className="settings-panel">
