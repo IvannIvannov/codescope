@@ -54,6 +54,8 @@ import {
 
 import "./App.css";
 
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
 function App() {
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 
@@ -863,7 +865,7 @@ function App() {
   const requestAnalysis = async (
     sourceCode: string,
   ): Promise<AnalysisReport> => {
-    const response = await fetch("http://localhost:3000/analyze/code", {
+    const response = await fetch(`${API_URL}/analyze/code`, {
       method: "POST",
 
       headers: {
