@@ -148,6 +148,8 @@ function App() {
 
   const [error, setError] = useState("");
 
+  const [configError, setConfigError] = useState("");
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(analyzerConfig));
   }, [analyzerConfig]);
@@ -343,11 +345,8 @@ function App() {
     }
 
     const leftPadding = 60;
-
     const rightPadding = 960;
-
     const topPadding = 30;
-
     const chartHeight = 160;
 
     return trendEntries.map((entry, index) => {
@@ -373,7 +372,6 @@ function App() {
 
   const handleEditorMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
-
     monacoRef.current = monaco;
   };
 
@@ -397,9 +395,7 @@ function App() {
 
   const clearAnalysis = () => {
     setReport(null);
-
     setError("");
-
     clearMarkers();
   };
 
@@ -407,15 +403,12 @@ function App() {
     setProjectFiles((currentFiles) =>
       currentFiles.map((file) => ({
         ...file,
-
         report: null,
       })),
     );
 
     setReport(null);
-
     setError("");
-
     clearMarkers();
   };
 
@@ -445,7 +438,6 @@ function App() {
 
   const clearHistory = () => {
     setAnalysisHistory([]);
-
     setSelectedHistoryIds([]);
   };
 
@@ -469,12 +461,10 @@ function App() {
 
   const handleConfigChange = <K extends keyof AnalyzerConfig>(
     key: K,
-
     value: AnalyzerConfig[K],
   ) => {
     setAnalyzerConfig((currentConfig) => ({
       ...currentConfig,
-
       [key]: value,
     }));
 
@@ -486,6 +476,7 @@ function App() {
       ...defaultAnalyzerConfig,
     });
 
+    setConfigError("");
     invalidateAnalysis();
   };
 
@@ -494,6 +485,7 @@ function App() {
       ...analyzerPresets[preset],
     });
 
+    setConfigError("");
     invalidateAnalysis();
   };
 
@@ -504,6 +496,7 @@ function App() {
   };
 
   const openConfigPicker = () => {
+    setConfigError("");
     configInputRef.current?.click();
   };
 
@@ -572,9 +565,9 @@ function App() {
 
       invalidateAnalysis();
 
-      setError("");
+      setConfigError("");
     } catch {
-      setError(
+      setConfigError(
         "Could not import config. Please select a valid CodeScope JSON config file.",
       );
     }
@@ -611,9 +604,7 @@ function App() {
 
       return {
         startLineNumber: line,
-
         startColumn: column,
-
         endLineNumber: line,
 
         endColumn: issue.snippet ? column + issue.snippet.length : column + 1,
@@ -644,9 +635,7 @@ function App() {
           index === selectedProjectFile
             ? {
                 ...file,
-
                 code: newCode,
-
                 report: null,
               }
             : file,
@@ -691,7 +680,6 @@ function App() {
 
       editorRef.current?.setPosition({
         lineNumber: 1,
-
         column: 1,
       });
 
@@ -790,7 +778,6 @@ function App() {
 
     editorRef.current?.setPosition({
       lineNumber: 1,
-
       column: 1,
     });
 
@@ -874,7 +861,6 @@ function App() {
 
       body: JSON.stringify({
         code: sourceCode,
-
         config: analyzerConfig,
       }),
     });
@@ -1007,7 +993,6 @@ function App() {
 
     return date.toLocaleString(undefined, {
       dateStyle: "medium",
-
       timeStyle: "short",
     });
   };
@@ -1017,7 +1002,6 @@ function App() {
 
     return date.toLocaleDateString(undefined, {
       month: "short",
-
       day: "numeric",
     });
   };
@@ -1111,7 +1095,6 @@ function App() {
         onChange={handleFolderUpload}
         {...({
           webkitdirectory: "",
-
           directory: "",
         } as React.InputHTMLAttributes<HTMLInputElement>)}
       />
@@ -1150,6 +1133,7 @@ function App() {
         <SettingsPanel
           analyzerConfig={analyzerConfig}
           activePreset={activePreset}
+          configError={configError}
           onApplyPreset={applyPreset}
           onConfigChange={handleConfigChange}
           onExportConfig={exportAnalyzerConfig}

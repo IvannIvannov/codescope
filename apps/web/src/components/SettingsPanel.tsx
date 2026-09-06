@@ -3,6 +3,7 @@ import type { ActivePreset, AnalyzerConfig, AnalyzerPreset } from "../types";
 interface SettingsPanelProps {
   analyzerConfig: AnalyzerConfig;
   activePreset: ActivePreset;
+  configError: string;
 
   onApplyPreset: (preset: AnalyzerPreset) => void;
 
@@ -23,6 +24,7 @@ function formatPresetName(preset: ActivePreset) {
 function SettingsPanel({
   analyzerConfig,
   activePreset,
+  configError,
   onApplyPreset,
   onConfigChange,
   onExportConfig,
@@ -39,7 +41,6 @@ function SettingsPanel({
 
           <div className="active-preset">
             <span>Active preset:</span>
-
             <strong>{formatPresetName(activePreset)}</strong>
           </div>
 
@@ -86,6 +87,8 @@ function SettingsPanel({
         </div>
       </div>
 
+      {configError && <p className="error">{configError}</p>}
+
       <div className="settings-grid">
         <label className="setting-toggle">
           <input
@@ -96,7 +99,6 @@ function SettingsPanel({
 
           <div>
             <strong>No any</strong>
-
             <span>Flag usage of the TypeScript any type.</span>
           </div>
         </label>
@@ -112,7 +114,6 @@ function SettingsPanel({
 
           <div>
             <strong>No console</strong>
-
             <span>Flag console statements in production code.</span>
           </div>
         </label>
