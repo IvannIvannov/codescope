@@ -1,34 +1,177 @@
 # CodeScope
 
-CodeScope is a full-stack code quality analyzer for JavaScript and TypeScript projects. It analyzes source code, detects common code quality issues, calculates a quality score, and provides clear suggestions for improving maintainability.
+**CodeScope** is a full-stack code quality analyzer for JavaScript and TypeScript projects.
 
-The application supports both individual code analysis and complete project analysis through a modern web interface.
+It analyzes source code, detects common maintainability and quality issues, calculates a code quality score, and provides actionable suggestions for improvement.
+
+🔗 **Live Demo:** https://codescope-n5t7.onrender.com  
+💻 **GitHub:** https://github.com/IvannIvannov/codescope
+
+---
 
 ## Features
 
-- Analyze individual JavaScript and TypeScript files
-- Analyze complete projects and folders
-- Automatic code quality score from 0 to 100
-- Severity classification for detected issues
-- Detailed suggestions for improving code
-- Monaco-based code editor with issue markers
-- Navigate directly from an issue to the affected line
-- Filter project files by issue status
-- Sort files by name or number of issues
-- Filter project issues by severity and rule
-- Configurable analyzer rules and thresholds
-- Relaxed, Balanced, and Strict presets
-- Custom analyzer configuration
-- Import and export analyzer configuration as JSON
-- Analysis history stored locally
-- Compare previous analysis results
-- Code quality score trend visualization
-- Export analysis reports as JSON or CSV
-- REST API for code analysis
+### Code Analysis
 
-## Screenshots
+Analyze individual JavaScript or TypeScript files directly in the browser.
 
-> Screenshots of the CodeScope interface will be added here.
+CodeScope detects:
+
+- Explicit `any` usage
+- `console` statements
+- Long functions
+- Functions with too many parameters
+- High cyclomatic complexity
+- Deeply nested code
+
+Each analysis returns:
+
+- Code quality score
+- Number of detected issues
+- Severity levels
+- File metrics
+- Line and column locations
+- Suggestions for improvement
+
+---
+
+## Project Analysis
+
+CodeScope can also analyze an entire project.
+
+Supported files:
+
+- `.ts`
+- `.tsx`
+- `.js`
+- `.jsx`
+
+Project mode includes:
+
+- Overall project health score
+- Per-file scores
+- Total issue count
+- Severity breakdown
+- File filtering
+- File sorting
+- Project-wide issue explorer
+- Direct navigation from an issue to the affected file and line
+
+---
+
+## Interactive Code Editor
+
+The application uses the Monaco Editor to provide a development experience similar to modern IDEs.
+
+Features include:
+
+- Syntax highlighting
+- Code editing
+- Line navigation
+- Analyzer issue markers
+- Automatic file language detection
+
+---
+
+## Analyzer Settings
+
+Analyzer behavior can be customized directly from the interface.
+
+Available settings:
+
+- Detect explicit `any`
+- Detect `console` usage
+- Maximum function length
+- Maximum number of parameters
+- Maximum complexity
+- Maximum nesting depth
+
+### Presets
+
+CodeScope includes three predefined analyzer configurations:
+
+- **Relaxed**
+- **Balanced**
+- **Strict**
+
+Changing individual settings automatically creates a **Custom** configuration.
+
+Analyzer settings are persisted locally in the browser.
+
+---
+
+## Configuration Import & Export
+
+Analyzer configurations can be exported as JSON and imported again later.
+
+Example:
+
+```json
+{
+  "noAny": true,
+  "noConsole": true,
+  "maxFunctionLength": 40,
+  "maxParameters": 4,
+  "maxComplexity": 8,
+  "maxNestingDepth": 2
+}
+```
+
+Invalid configuration files are detected and reported directly in the settings panel.
+
+---
+
+## Analysis History
+
+CodeScope keeps analysis history in the browser using local storage.
+
+History features include:
+
+- Previous code analyses
+- Previous project analyses
+- Score tracking
+- Analysis comparison
+- Score trend visualization
+- Code / Project history filtering
+
+Two analysis runs can be selected and compared directly.
+
+---
+
+## Report Export
+
+Analysis results can be exported for further use.
+
+Supported formats:
+
+- JSON
+- CSV
+
+Project reports include both aggregate project metrics and individual file results.
+
+---
+
+## Architecture
+
+CodeScope is built as an npm workspaces monorepo.
+
+```text
+codescope/
+├── apps/
+│   ├── api/
+│   │   └── Fastify REST API
+│   │
+│   └── web/
+│       └── React + Vite frontend
+│
+└── packages/
+    └── analyzer/
+        └── Code analysis engine
+```
+
+The analyzer is separated from both the frontend and API, allowing the core analysis logic to be reused independently.
+
+---
 
 ## Tech Stack
 
@@ -44,182 +187,115 @@ The application supports both individual code analysis and complete project anal
 - Node.js
 - Fastify
 - TypeScript
+- `@fastify/cors`
 
 ### Analyzer
 
 - TypeScript
 - ts-morph
-- Custom static analysis rules
 
 ### Testing
 
 - Vitest
 
-## Architecture
+### Deployment
 
-CodeScope is organized as an npm workspace monorepo:
+- Render Static Site
+- Render Web Service
 
-```text
-codescope/
-├── apps/
-│   ├── api/
-│   │   └── src/
-│   └── web/
-│       └── src/
-├── packages/
-│   └── analyzer/
-│       ├── src/
-│       │   └── rules/
-│       └── tests/
-├── package.json
-└── README.md
+---
+
+## API
+
+The backend exposes an API used by the web application.
+
+### Health Check
+
+```http
+GET /health
 ```
 
-The project consists of three main parts:
-
-**Web application**  
-Provides the user interface, Monaco code editor, project explorer, settings, history, comparisons, charts, and report exports.
-
-**API**  
-Provides the HTTP interface between the frontend and the analyzer.
-
-**Analyzer**  
-Contains the static analysis engine and individual code quality rules.
-
-## Analyzer Rules
-
-CodeScope currently includes the following rules:
-
-| Rule                  | Description                                                     |
-| --------------------- | --------------------------------------------------------------- |
-| `no-any`              | Detects explicit use of the TypeScript `any` type               |
-| `no-console`          | Detects usage of `console.*`                                    |
-| `max-function-length` | Detects functions exceeding the configured line limit           |
-| `max-parameters`      | Detects functions with too many parameters                      |
-| `complexity`          | Detects functions exceeding the configured complexity threshold |
-| `deep-nesting`        | Detects excessive nesting depth                                 |
-
-Each rule contributes to the final analysis report and helps identify areas that may reduce code readability and maintainability.
-
-## Analysis Modes
-
-### Code Mode
-
-Code Mode allows you to paste code directly into the editor or open a supported source file and analyze it individually.
-
-Supported file types include:
-
-```text
-.ts
-.tsx
-.js
-.jsx
-```
-
-### Project Mode
-
-Project Mode allows you to open a project folder and analyze multiple supported source files at once.
-
-CodeScope generates:
-
-- Overall project health score
-- Total issue count
-- Severity breakdown
-- File-level scores
-- Project metrics
-- Navigable issue list
-
-## Analyzer Configuration
-
-The analyzer can be customized using several thresholds:
+Example response:
 
 ```json
 {
-  "noAny": true,
-  "noConsole": true,
-  "maxFunctionLength": 50,
-  "maxParameters": 4,
-  "maxComplexity": 10,
-  "maxNestingDepth": 3
+  "status": "ok"
 }
 ```
 
-CodeScope also provides three predefined configuration presets:
+### Analyze Code
 
-- **Relaxed** — fewer restrictions
-- **Balanced** — balanced defaults for general development
-- **Strict** — stronger code quality requirements
+```http
+POST /analyze/code
+```
 
-Changing individual settings automatically switches the active configuration to **Custom**.
+Example request:
 
-Analyzer configuration is persisted locally in the browser and can also be imported or exported as JSON.
+```json
+{
+  "code": "function test(value: any) { console.log(value); }"
+}
+```
 
-## Analysis History
+An optional analyzer configuration can also be provided.
 
-CodeScope stores recent analysis results locally in the browser.
+---
 
-The History panel allows you to:
-
-- Review previous analyses
-- Compare two analysis results
-- Track score changes
-- Compare issue counts and severity
-- Filter score trends between code and project analyses
-
-## Report Export
-
-Analysis results can be exported in:
-
-- JSON
-- CSV
-
-Project exports include the project summary as well as individual file reports and detected issues.
-
-## Getting Started
+## Local Development
 
 ### Requirements
-
-Make sure you have installed:
 
 - Node.js
 - npm
 
-### Installation
-
-Clone the repository:
+### Clone the repository
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/IvannIvannov/codescope.git
 cd codescope
 ```
 
-Install dependencies:
+### Install dependencies
 
 ```bash
 npm install
 ```
 
+---
+
+## Run the API
+
+From the repository root:
+
+```bash
+npm run dev --workspace=@codescope/api
+```
+
+The API runs by default on:
+
+```text
+http://localhost:3000
+```
+
+---
+
+## Run the Web Application
+
+Open another terminal and run:
+
+```bash
+npm run dev --workspace=@codescope/web
+```
+
+The frontend runs by default on:
+
+```text
+http://localhost:5173
+```
+
+---
+
 ## Environment Variables
-
-### Web
-
-Create:
-
-```text
-apps/web/.env
-```
-
-You can use:
-
-```text
-apps/web/.env.example
-```
-
-as a template.
-
-```env
-VITE_API_URL=http://localhost:3000
-```
 
 ### API
 
@@ -229,91 +305,47 @@ Create:
 apps/api/.env
 ```
 
-You can use:
-
-```text
-apps/api/.env.example
-```
-
-as a template.
+Example:
 
 ```env
 PORT=3000
 CLIENT_ORIGIN=http://localhost:5173
 ```
 
-## Running Locally
-
-Start the API:
-
-```bash
-npm run dev --workspace=@codescope/api
-```
-
-Start the web application in another terminal:
-
-```bash
-npm run dev --workspace=@codescope/web
-```
-
-The web application will normally be available at:
+A template is available in:
 
 ```text
-http://localhost:5173
+apps/api/.env.example
 ```
 
-The API will normally be available at:
+### Web
+
+Create:
 
 ```text
-http://localhost:3000
+apps/web/.env
 ```
 
-API health endpoint:
+Example:
+
+```env
+VITE_API_URL=http://localhost:3000
+```
+
+A template is available in:
 
 ```text
-GET /health
+apps/web/.env.example
 ```
 
-Code analysis endpoint:
-
-```text
-POST /analyze/code
-```
-
-## Testing
-
-The analyzer includes automated tests covering the core analysis rules and important regression scenarios.
-
-Run the tests with:
-
-```bash
-npm test --workspace=@codescope/analyzer
-```
-
-Current test suite:
-
-```text
-9 tests
-```
-
-The tests cover:
-
-- Clean code analysis
-- Explicit `any` detection
-- Disabled `no-any` behavior
-- Console usage detection
-- `no-console` property-access regression
-- Maximum parameters
-- Maximum function length
-- Complexity
-- Nesting depth
+---
 
 ## Production Build
 
-Build the web application:
+Build the analyzer:
 
 ```bash
-npm run build --workspace=@codescope/web
+npm run build --workspace=@codescope/analyzer
 ```
 
 Build the API:
@@ -322,64 +354,80 @@ Build the API:
 npm run build --workspace=@codescope/api
 ```
 
-Build the analyzer:
+Build the frontend:
 
 ```bash
-npm run build --workspace=@codescope/analyzer
+npm run build --workspace=@codescope/web
 ```
+
+---
+
+## Tests
+
+The analyzer contains automated tests covering the main analysis rules and regression cases.
+
+Run them with:
+
+```bash
+npm test --workspace=@codescope/analyzer
+```
+
+The current analyzer test suite contains **9 automated tests**.
+
+---
 
 ## Example
 
-Given code such as:
+Input:
 
 ```ts
-function calculate(
-  first: any,
-  second: any,
-  third: number,
-  fourth: number,
-  fifth: number,
-) {
-  console.log("calculating");
-
-  return first + second + third + fourth + fifth;
+function test(value: any) {
+  console.log(value);
 }
 ```
 
-CodeScope can identify issues such as explicit `any` usage, console usage, and excessive function parameters depending on the selected analyzer configuration.
+CodeScope can detect:
 
-The result includes a quality score, severity information, source location, and suggestions for improving the code.
+- Explicit `any`
+- Console usage
+
+The resulting report includes the detected issues, their severity, source location, suggestions, metrics, and an overall quality score.
+
+---
 
 ## Project Status
 
 CodeScope currently includes:
 
-- Functional static analysis engine
-- Six configurable analyzer rules
-- Code and project analysis
-- REST API
-- React web interface
+- Code analysis
+- Project analysis
+- Multiple analyzer rules
+- Configurable thresholds
+- Analyzer presets
 - Monaco Editor integration
 - Project issue navigation
-- Configurable presets
-- Persistent analyzer settings
-- Analysis history and comparisons
-- Score trend visualization
-- JSON and CSV report export
+- Analysis history
+- Analysis comparison
+- Score trends
+- JSON and CSV exports
+- Configuration import/export
+- Persistent browser settings
 - Automated analyzer tests
-- Production-ready environment configuration
+- REST API
+- Production deployment
 
-## Future Improvements
+---
 
-Potential future improvements include:
+## Live Application
 
-- Additional static analysis rules
-- GitHub repository analysis
-- Improved syntax and issue visualization
-- More detailed project statistics
-- CI integration
-- Additional report formats
+Try CodeScope here:
+
+**https://codescope-n5t7.onrender.com**
+
+---
 
 ## Author
 
-Developed as a full-stack software engineering project focused on static code analysis, developer tooling, and code quality.
+Developed by **Ivan Ivanov**.
+
+GitHub: https://github.com/IvannIvannov
